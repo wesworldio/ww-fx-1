@@ -1,6 +1,6 @@
 # WesWorld FX
 
-![Example Output](examples/2025-11-27 02.28.37.gif)
+![Example Output](examples/2025-11-27-02.28.37.gif)
 
 Creative custom face filters with distortion effects that integrate with OBS via virtual camera.
 
