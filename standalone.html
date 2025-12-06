@@ -491,19 +491,25 @@
                 console.log('Loading face-api.js models...');
                 updateStatus('Loading face detection models...', 'connected');
                 
-                // Load face-api.js models
+                // Load face-api.js models (detector + landmarks for eye alignment)
                 // Use GitHub raw content for weights (most reliable)
                 const modelPath = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
                 console.log('Loading face detection models from:', modelPath);
                 try {
-                    await faceapi.nets.tinyFaceDetector.loadFromUri(modelPath);
-                    console.log('TinyFaceDetector model loaded successfully');
+                    await Promise.all([
+                        faceapi.nets.tinyFaceDetector.loadFromUri(modelPath),
+                        faceapi.nets.faceLandmark68Net.loadFromUri(modelPath)
+                    ]);
+                    console.log('Face detection and landmark models loaded successfully');
                 } catch (error) {
                     console.error('Failed to load from GitHub, trying unpkg:', error);
                     // Fallback to unpkg
                     const unpkgPath = 'https://unpkg.com/face-api.js@0.22.2/weights';
-                    await faceapi.nets.tinyFaceDetector.loadFromUri(unpkgPath);
-                    console.log('TinyFaceDetector model loaded from unpkg');
+                    await Promise.all([
+                        faceapi.nets.tinyFaceDetector.loadFromUri(unpkgPath),
+                        faceapi.nets.faceLandmark68Net.loadFromUri(unpkgPath)
+                    ]);
+                    console.log('Face detection and landmark models loaded from unpkg');
                 }
                 
                 faceApiModelsLoaded = true;
