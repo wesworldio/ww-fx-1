@@ -761,7 +761,8 @@
         const maskPersistenceTimeout = 5000; // Keep mask visible for 5 seconds after last successful detection
         let lastSuccessfulMaskData = null; // Store last successful mask position and size
         let lastDrawnMaskPosition = null; // Store last drawn mask position to prevent jitter
-        const maskPositionThreshold = 5; // Only update mask position if it moves more than 5 pixels
+        const maskPositionThreshold = 10; // Only update mask position if it moves more than 10 pixels (increased to reduce flickering)
+        const maskSmoothingFactor = 0.95; // Use 95% old position, 5% new (very smooth, prevents flickering)
         
         async function processVideoFrame() {
             try {
@@ -1086,14 +1087,17 @@
                         const dw = Math.abs(width - lastDrawnMaskPosition.width);
                         const dh = Math.abs(height - lastDrawnMaskPosition.height);
                         
-                        // If position changed significantly, update smoothly
+                        // If position changed significantly, update very smoothly
                         if (dx > maskPositionThreshold || dy > maskPositionThreshold || 
                             dw > maskPositionThreshold || dh > maskPositionThreshold) {
-                            // Smooth interpolation (80% old, 20% new) to prevent sudden jumps
-                            x = Math.round(lastDrawnMaskPosition.x * 0.8 + x * 0.2);
-                            y = Math.round(lastDrawnMaskPosition.y * 0.8 + y * 0.2);
-                            width = Math.round(lastDrawnMaskPosition.width * 0.8 + width * 0.2);
-                            height = Math.round(lastDrawnMaskPosition.height * 0.8 + height * 0.2);
+                            // Very smooth interpolation (95% old, 5% new) to prevent sudden jumps and flickering
+                            const newFactor = 1 - maskSmoothingFactor;
+                            x = Math.round(lastDrawnMaskPosition.x * maskSmoothingFactor + x * newFactor);
+                            y = Math.round(lastDrawnMaskPosition.y * maskSmoothingFactor + y * newFactor);
+                            width = Math.round(lastDrawnMaskPosition.width * maskSmoothingFactor + width * newFactor);
+                            height = Math.round(lastDrawnMaskPosition.height * maskSmoothingFactor + height * newFactor);
+                            // Update stored position with smoothed values
+                            lastDrawnMaskPosition = { x, y, width, height };
                         } else {
                             // Use last position if change is small (prevents jitter)
                             x = lastDrawnMaskPosition.x;
