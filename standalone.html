@@ -833,9 +833,39 @@
                                             lastValidDetections = detections; // Update last valid
                                             // Clear normalized cache so it gets re-normalized with new detections
                                             normalizedDetectionsCache = [];
-                                            // Clear cached mask position to force recalculation
-                                            cachedMaskPosition = null;
-                                            lastDetectionHash = null;
+                                            
+                                            // If we have a locked position, check if the new detection is far enough to unlock
+                                            if (lockedMaskPosition && detections.length > 0) {
+                                                const newDetection = detections[0];
+                                                const newBox = (newDetection.detection && newDetection.detection.box) || newDetection.box;
+                                                if (newBox) {
+                                                    // Calculate what the new position would be (rough estimate from box)
+                                                    const scaleFactor = 1.6;
+                                                    const newWidth = newBox.width * scaleFactor;
+                                                    const newHeight = newBox.height * scaleFactor;
+                                                    const offsetX = (newWidth - newBox.width) / 2;
+                                                    const offsetY = (newHeight - newBox.height) / 2;
+                                                    const estimatedX = newBox.x - offsetX;
+                                                    const estimatedY = newBox.y - offsetY;
+                                                    
+                                                    // Check if movement is large enough to unlock (50+ pixels)
+                                                    const dx = Math.abs(estimatedX - lockedMaskPosition.x);
+                                                    const dy = Math.abs(estimatedY - lockedMaskPosition.y);
+                                                    
+                                                    if (dx > maskPositionThreshold || dy > maskPositionThreshold) {
+                                                        // Large movement detected - unlock position to allow tracking
+                                                        lockedMaskPosition = null;
+                                                        lastDrawnMaskPosition = null;
+                                                        cachedMaskPosition = null;
+                                                        lastDetectionHash = null;
+                                                    }
+                                                }
+                                            } else {
+                                                // No locked position - clear cached mask position to force recalculation
+                                                cachedMaskPosition = null;
+                                                lastDetectionHash = null;
+                                            }
+                                            
                                             // Update last successful mask time
                                             lastSuccessfulMaskTime = Date.now();
                                         }
