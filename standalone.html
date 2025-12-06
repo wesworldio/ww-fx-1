@@ -752,7 +752,7 @@
         
         // Process video frame with face detection
         let lastFaceDetectionTime = 0;
-        const faceDetectionInterval = 300; // Detect faces every 300ms (3.3fps for face detection) - reduced frequency to prevent flickering
+        const faceDetectionInterval = 500; // Detect faces every 500ms (2fps for face detection) - reduced frequency to prevent flickering
         let cachedDetections = [];
         let lastValidDetections = []; // Keep last valid detections to prevent flickering
         let normalizedDetectionsCache = []; // Cache normalized detections to avoid re-processing every frame
@@ -761,8 +761,8 @@
         const maskPersistenceTimeout = 5000; // Keep mask visible for 5 seconds after last successful detection
         let lastSuccessfulMaskData = null; // Store last successful mask position and size
         let lastDrawnMaskPosition = null; // Store last drawn mask position to prevent jitter
-        const maskPositionThreshold = 10; // Only update mask position if it moves more than 10 pixels (increased to reduce flickering)
-        const maskSmoothingFactor = 0.95; // Use 95% old position, 5% new (very smooth, prevents flickering)
+        const maskPositionThreshold = 20; // Only update mask position if it moves more than 20 pixels (very high threshold to prevent flickering)
+        const maskSmoothingFactor = 0.98; // Use 98% old position, 2% new (extremely smooth, prevents flickering)
         let cachedMaskPosition = null; // Cache the calculated mask position to avoid recalculating every frame
         let lastDetectionHash = null; // Hash of detection to detect when it actually changes
         
