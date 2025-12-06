@@ -433,9 +433,42 @@ python face_filters.py swirl --width 1920 --height 1080 --fps 60 --preview-only
 
 **Note:** Use `python3` on macOS/Linux if `python` points to Python 2, or `python` on Windows. Adjust based on your system's Python installation.
 
-## Web-Based Version
+## Standalone Web Version (GitHub Pages)
 
-Access the filters through your web browser! Perfect for OBS Browser Source integration.
+A fully client-side version that runs entirely in the browser without any backend server! Perfect for hosting on GitHub Pages or any static hosting service.
+
+### Using the Standalone Version
+
+1. Simply open `standalone.html` in your web browser
+2. Or host it on GitHub Pages:
+   - Push the repo to GitHub
+   - Enable GitHub Pages in repository settings
+   - Set source to `main` branch and root directory
+   - Access at `https://yourusername.github.io/repo-name/standalone.html`
+
+### Features
+
+- ✅ **No Backend Required** - Runs entirely in the browser
+- ✅ **Client-Side Face Detection** - Uses MediaPipe Face Detection (CDN)
+- ✅ **All UI Features** - Pinned FX, search, keyboard shortcuts
+- ✅ **Face Mask Support** - Loads masks from `assets/dropout/face_mask/`
+- ✅ **LocalStorage** - Saves preferences (pinned FX, camera selection)
+- ✅ **Works Offline** - Once assets are cached
+
+### Keyboard Shortcuts
+
+- **H** - Toggle UI visibility
+- **↑/↓** - Cycle through filters
+- **Spacebar** - Random cycle through filters
+
+### Requirements
+
+- Modern web browser with camera access
+- `assets/dropout/face_mask/` folder with face mask images (sam.png, ariel.png)
+
+## Web-Based Version (Server)
+
+Access the filters through your web browser with a Python backend! Perfect for OBS Browser Source integration.
 
 ### Starting the Web Server
 

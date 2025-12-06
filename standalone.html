@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WesWorld FX - Standalone</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        
+        #videoContainer {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        #videoInput {
+            display: none;
+        }
+        
+        #canvasOutput {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        
+        #controls {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: var(--surface-color, rgba(26, 26, 26, 0.95));
+            color: var(--text-color, white);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color, #333);
+            font-size: 14px;
+            min-width: 180px;
+            max-width: 220px;
+            transition: opacity 0.3s, transform 0.3s;
+        }
+        
+        #controls.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        #controls.hidden {
+            opacity: 0;
+            transform: translateX(-100%);
+            pointer-events: none;
+        }
+        
+        #status {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            padding: 10px 15px;
+            background: var(--surface-color, rgba(26, 26, 26, 0.95));
+            color: var(--text-color, white);
+            border-radius: 8px;
+            font-size: 12px;
+            border: 1px solid var(--border-color, #333);
+            transition: opacity 0.3s;
+        }
+        
+        #status.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        #status.connected {
+            border-color: var(--status-connected-color, #4caf50);
+        }
+        
+        #status.error {
+            border-color: var(--status-error-color, #f44336);
+        }
+        
+        .theme-selector {
+            margin-bottom: 10px;
+        }
+        
+        .theme-selector label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: var(--text-secondary-color, #cccccc);
+        }
+        
+        .theme-selector select {
+            width: 100%;
+            padding: 6px;
+            background: var(--surface-color, #1a1a1a);
+            color: var(--text-color, white);
+            border: 1px solid var(--border-color, #333);
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-size: 12px;
+            color: var(--text-secondary-color, #cccccc);
+        }
+        
+        select, input {
+            width: 100%;
+            padding: 8px;
+            background: var(--surface-color, #1a1a1a);
+            color: var(--text-color, white);
+            border: 1px solid var(--border-color, #333);
+            border-radius: 4px;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--accent-color, #5250ef);
+        }
+        
+        button {
+            width: 100%;
+            padding: 10px;
+            background: transparent;
+            border: 2px solid var(--button-color, #4a9eff);
+            color: var(--button-color, #4a9eff);
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            background: var(--button-color, #4a9eff);
+            color: var(--selected-text-color, #ffffff);
+        }
+        
+        button#startButton,
+        button#stopButton {
+            background: var(--button-color, #4a9eff);
+            color: var(--selected-text-color, #ffffff);
+        }
+        
+        button#startButton:hover,
+        button#stopButton:hover {
+            background: var(--button-hover-color, #5aaeff);
+        }
+        
+        .fx-dropdown {
+            position: relative;
+            width: 100%;
+        }
+        
+        .fx-dropdown-button {
+            width: 100%;
+            padding: 12px;
+            background: var(--surface-color, #1a1a1a);
+            color: var(--text-color, white);
+            border: 1px solid var(--border-color, #333);
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .fx-dropdown-button:hover {
+            border-color: var(--accent-color, #5250ef);
+        }
+        
+        .fx-dropdown-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--surface-color, #1a1a1a);
+            border: 1px solid var(--border-color, #333);
+            border-radius: 4px;
+            margin-top: 4px;
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+            overflow-x: hidden;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .fx-dropdown-menu.open {
+            display: block;
+        }
+        
+        .fx-group {
+            margin-bottom: 10px;
+        }
+        
+        .fx-group-title {
+            padding: 8px 12px;
+            font-size: 11px;
+            font-weight: bold;
+            color: var(--group-title-color, #5250ef);
+            text-transform: uppercase;
+            background: var(--surface-hover-color, #2a2a2a);
+            border-bottom: 1px solid var(--border-color, #333);
+        }
+        
+        .fx-option {
+            padding: 12px 16px;
+            color: var(--text-color, white);
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            width: 100%;
+            text-align: left;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s;
+        }
+        
+        .fx-option:hover {
+            background: var(--surface-hover-color, #2a2a2a);
+        }
+        
+        .fx-option.selected {
+            background: var(--accent-color, #5250ef);
+            color: var(--selected-text-color, #ffffff);
+        }
+        
+        .fx-option-image {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid var(--border-color, #333);
+        }
+        
+        .fx-option-text {
+            flex: 1;
+        }
+        
+        .fx-option-pin {
+            cursor: pointer;
+            font-size: 16px;
+            padding: 4px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        
+        .fx-option-pin:hover {
+            opacity: 1;
+        }
+        
+        .fx-current-pin {
+            cursor: pointer;
+            font-size: 16px;
+            padding: 4px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        
+        .fx-current-pin:hover {
+            opacity: 1;
+        }
+        
+        .fx-search-container {
+            margin-bottom: 10px;
+        }
+        
+        .fx-search-input {
+            width: 100%;
+            padding: 8px;
+            background: var(--surface-color, #1a1a1a);
+            color: var(--text-color, white);
+            border: 1px solid var(--border-color, #333);
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .pinned-fx-container {
+            margin-bottom: 10px;
+            min-height: 20px;
+        }
+        
+        .pinned-fx-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            margin-bottom: 4px;
+            background: var(--surface-hover-color, #2a2a2a);
+            border: 1px solid var(--border-color, #333);
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: move;
+            user-select: none;
+            transition: all 0.2s;
+            width: 100%;
+        }
+        
+        .pinned-fx-item:hover {
+            background: var(--accent-color, #5250ef);
+            border-color: var(--accent-color, #5250ef);
+        }
+        
+        .pinned-fx-item.pinned {
+            border-color: var(--accent-color, #5250ef);
+            background: var(--accent-color, #5250ef);
+            color: var(--selected-text-color, #ffffff);
+        }
+        
+        .pinned-fx-item.dragging {
+            opacity: 0.5;
+        }
+        
+        .pinned-fx-item.drag-over {
+            border-color: var(--accent-color, #5250ef);
+        }
+        
+        .pinned-fx-item-text {
+            flex: 1;
+            cursor: pointer;
+        }
+        
+        .pinned-fx-item-remove {
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            opacity: 0.7;
+            padding: 0 4px;
+        }
+        
+        .pinned-fx-item-remove:hover {
+            opacity: 1;
+        }
+        
+        @media (max-width: 768px) {
+            #controls {
+                max-width: 100%;
+                width: calc(100vw - 20px);
+            }
+            
+            .fx-dropdown-menu {
+                max-height: calc(100vh - 150px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="controls" class="hidden">
+        <div class="theme-selector">
+            <label for="themeSelect">Theme:</label>
+            <select id="themeSelect"></select>
+        </div>
+        <label>
+            Camera:
+            <select id="cameraSelect"></select>
+        </label>
+        <label>
+            Search FX:
+            <input type="text" id="fxSearchInput" class="fx-search-input" placeholder="Search FX..." autocomplete="off">
+        </label>
+        <label>
+            Pinned:
+            <div id="pinnedFxContainer"></div>
+        </label>
+        <label>
+            Current FX:
+            <div class="fx-dropdown">
+                <button class="fx-dropdown-button" id="fxDropdownButton" type="button">
+                    <span id="fxSelectedText">None (Original)</span>
+                    <span id="fxCurrentPin" class="fx-current-pin" style="display: none;" title="Pin current FX"></span>
+                </button>
+                <div class="fx-dropdown-menu" id="fxDropdownMenu">
+                    <div id="fxOptionsContainer"></div>
+                </div>
+            </div>
+            <select id="filterSelect" style="display: none;"></select>
+        </label>
+        <button id="startButton">Start Camera</button>
+        <button id="stopButton" style="display: none;">Stop Camera</button>
+    </div>
+    
+    <div id="status" class="hidden">Initializing...</div>
+    
+    <div id="videoContainer">
+        <video id="videoInput" autoplay playsinline></video>
+        <canvas id="canvasOutput"></canvas>
+    </div>
+    
+    <!-- MediaPipe Face Detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/face_detection.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+    
+    <script>
+        // State
+        let localStream = null;
+        let currentFilter = '';
+        let animationFrameId = null;
+        let faceDetection = null;
+        let camera = null;
+        let allFilters = [];
+        let pinnedFilters = [];
+        let currentFilterIndex = -1;
+        let isRandomCycling = false;
+        let randomCycleInterval = null;
+        let controlsVisible = false;
+        let uiHideTimeout = null;
+        let frameCount = 0;
+        let faceMaskImages = {}; // Cache for face mask images
+        
+        // Elements
+        const videoInput = document.getElementById('videoInput');
+        const canvasOutput = document.getElementById('canvasOutput');
+        const ctx = canvasOutput.getContext('2d');
+        const cameraSelect = document.getElementById('cameraSelect');
+        const filterSelect = document.getElementById('filterSelect');
+        const fxDropdownButton = document.getElementById('fxDropdownButton');
+        const fxDropdownMenu = document.getElementById('fxDropdownMenu');
+        const fxSelectedText = document.getElementById('fxSelectedText');
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const statusDiv = document.getElementById('status');
+        const controls = document.getElementById('controls');
+        const themeSelect = document.getElementById('themeSelect');
+        let currentTheme = 'wesworld';
+        
+        // Filter definitions
+        const FILTER_CATEGORIES = {
+            'DROPOUT': ['dropout_logo', 'dropout_face_mask_sam', 'dropout_face_mask_ariel'],
+            'Distortion': ['bulge', 'stretch', 'swirl', 'fisheye', 'pinch', 'wave', 'mirror',
+                          'twirl', 'ripple', 'sphere', 'tunnel', 'water_ripple',
+                          'radial_blur', 'cylinder', 'barrel', 'pincushion', 'whirlpool', 'radial_zoom',
+                          'concave', 'convex', 'spiral', 'radial_stretch', 'radial_compress',
+                          'vertical_wave', 'horizontal_wave', 'skew_horizontal', 'skew_vertical',
+                          'rotate_zoom', 'radial_wave', 'zoom_in', 'zoom_out', 'fast_zoom_in',
+                          'fast_zoom_out', 'shake', 'pulse', 'spiral_zoom', 'extreme_closeup',
+                          'puzzle', 'rotate', 'rotate_45', 'rotate_90', 'flip_horizontal',
+                          'flip_vertical', 'flip_both', 'quad_mirror', 'tile', 'radial_tile',
+                          'zoom_blur', 'melt', 'kaleidoscope', 'glitch', 'double_vision'],
+            'Color & Style': ['black_white', 'sepia', 'vintage', 'neon_glow',
+                             'pixelate', 'blur', 'sharpen', 'emboss', 'red_tint', 'blue_tint',
+                             'green_tint', 'rainbow', 'negative', 'posterize', 'sketch', 'cartoon',
+                             'thermal', 'ice', 'ocean', 'plasma', 'jet', 'turbo', 'inferno',
+                             'magma', 'viridis', 'cool', 'hot', 'spring', 'summer', 'autumn',
+                             'winter', 'rainbow_shift', 'acid_trip', 'vhs', 'retro', 'cyberpunk',
+                             'anime', 'glow', 'solarize', 'edge_detect', 'halftone']
+        };
+        
+        // Build flat list
+        Object.values(FILTER_CATEGORIES).forEach(categoryFilters => {
+            allFilters.push(...categoryFilters);
+        });
+        
+        // Initialize MediaPipe Face Detection
+        function initFaceDetection() {
+            faceDetection = new FaceDetection({
+                locateFile: (file) => {
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`;
+                }
+            });
+            
+            faceDetection.setOptions({
+                modelSelection: 1, // 0 for short-range, 1 for full-range
+                minDetectionConfidence: 0.5
+            });
+            
+            faceDetection.onResults(onFaceDetectionResults);
+        }
+        
+        // Face detection results callback
+        function onFaceDetectionResults(results) {
+            if (!localStream || !videoInput.videoWidth) return;
+            
+            // Set canvas size to match video
+            if (canvasOutput.width !== videoInput.videoWidth || canvasOutput.height !== videoInput.videoHeight) {
+                canvasOutput.width = videoInput.videoWidth;
+                canvasOutput.height = videoInput.videoHeight;
+            }
+            
+            // Draw video frame
+            ctx.drawImage(videoInput, 0, 0, canvasOutput.width, canvasOutput.height);
+            
+            // Apply filter if selected
+            if (currentFilter) {
+                if (currentFilter.includes('face_mask') || currentFilter.includes('logo')) {
+                    // Face-specific filters
+                    if (results.detections && results.detections.length > 0) {
+                        applyFilter(ctx, results.detections);
+                    }
+                } else {
+                    // Apply full image filters
+                    applyFullImageFilter(ctx);
+                }
+            }
+        }
+        
+        // Apply filter to canvas
+        function applyFilter(ctx, detections) {
+            if (currentFilter.includes('face_mask')) {
+                // Apply face mask to each detected face
+                detections.forEach(detection => {
+                    const box = detection.boundingBox;
+                    const x = (box.xCenter - box.width / 2) * canvasOutput.width;
+                    const y = (box.yCenter - box.height / 2) * canvasOutput.height;
+                    const width = box.width * canvasOutput.width;
+                    const height = box.height * canvasOutput.height;
+                    
+                    applyFaceMask(ctx, x, y, width, height);
+                });
+            } else if (currentFilter === 'dropout_logo') {
+                // Apply logo to first detected face
+                if (detections.length > 0) {
+                    const detection = detections[0];
+                    const box = detection.boundingBox;
+                    const x = (box.xCenter - box.width / 2) * canvasOutput.width;
+                    const y = (box.yCenter - box.height / 2) * canvasOutput.height;
+                    const width = box.width * canvasOutput.width;
+                    const height = box.height * canvasOutput.height;
+                    
+                    applyDropoutLogo(ctx, x, y, width, height);
+                }
+            }
+        }
+        
+        // Apply face mask
+        async function applyFaceMask(ctx, x, y, width, height) {
+            // Extract mask name from filter (e.g., dropout_face_mask_sam -> sam)
+            const parts = currentFilter.split('_');
+            const maskName = parts[parts.length - 1];
+            
+            // Determine asset path
+            let assetPath = '';
+            if (currentFilter.startsWith('dropout_')) {
+                assetPath = `assets/dropout/face_mask/${maskName}.png`;
+            } else if (currentFilter.startsWith('assets_')) {
+                assetPath = `assets/face_mask/${maskName}.png`;
+            }
+            
+            if (!assetPath) return;
+            
+            // Load image if not cached
+            if (!faceMaskImages[assetPath]) {
+                try {
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    await new Promise((resolve, reject) => {
+                        img.onload = resolve;
+                        img.onerror = reject;
+                        img.src = assetPath;
+                    });
+                    faceMaskImages[assetPath] = img;
+                } catch (error) {
+                    console.warn('Failed to load face mask:', assetPath);
+                    return;
+                }
+            }
+            
+            const img = faceMaskImages[assetPath];
+            ctx.save();
+            ctx.drawImage(img, x, y, width, height);
+            ctx.restore();
+        }
+        
+        // Apply dropout logo
+        async function applyDropoutLogo(ctx, x, y, width, height) {
+            // Similar to face mask but for logo
+            // This would need a logo image asset
+            // For now, just draw a placeholder
+            ctx.save();
+            ctx.fillStyle = '#5250ef';
+            ctx.fillRect(x, y, width, height * 0.3);
+            ctx.restore();
+        }
+        
+        // Apply distortion filter to face region
+        function applyDistortionFilter(ctx, x, y, width, height) {
+            // Get image data for face region
+            const faceData = ctx.getImageData(x, y, width, height);
+            const data = faceData.data;
+            
+            // Apply distortion based on filter type
+            switch(currentFilter) {
+                case 'bulge':
+                    applyBulge(data, width, height);
+                    break;
+                case 'pixelate':
+                    applyPixelate(data, width, height);
+                    break;
+                // Add more distortion filters as needed
+            }
+            
+            ctx.putImageData(faceData, x, y);
+        }
+        
+        // Apply full image filter
+        function applyFullImageFilter(ctx) {
+            const imageData = ctx.getImageData(0, 0, canvasOutput.width, canvasOutput.height);
+            const data = imageData.data;
+            
+            switch(currentFilter) {
+                case 'black_white':
+                    applyBlackWhite(data);
+                    break;
+                case 'sepia':
+                    applySepia(data);
+                    break;
+                case 'negative':
+                    applyNegative(data);
+                    break;
+                case 'pixelate':
+                    applyPixelate(data, canvasOutput.width, canvasOutput.height);
+                    break;
+                case 'blur':
+                    applyBlur(data, canvasOutput.width, canvasOutput.height);
+                    break;
+                // Add more filters as needed
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+        }
+        
+        // Filter implementations
+        function applyBulge(data, width, height) {
+            // Simple bulge effect
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const radius = Math.min(width, height) / 2;
+            const strength = 0.5;
+            
+            const temp = new Uint8ClampedArray(data);
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const dx = x - centerX;
+                    const dy = y - centerY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < radius) {
+                        const angle = Math.atan2(dy, dx);
+                        const r = dist / radius;
+                        const newR = r * (1 - strength * (1 - r));
+                        const newX = Math.round(centerX + Math.cos(angle) * newR * radius);
+                        const newY = Math.round(centerY + Math.sin(angle) * newR * radius);
+                        
+                        if (newX >= 0 && newX < width && newY >= 0 && newY < height) {
+                            const srcIdx = (y * width + x) * 4;
+                            const dstIdx = (newY * width + newX) * 4;
+                            data[srcIdx] = temp[dstIdx];
+                            data[srcIdx + 1] = temp[dstIdx + 1];
+                            data[srcIdx + 2] = temp[dstIdx + 2];
+                            data[srcIdx + 3] = temp[dstIdx + 3];
+                        }
+                    }
+                }
+            }
+        }
+        
+        function applyPixelate(data, width, height) {
+            const pixelSize = 10;
+            for (let y = 0; y < height; y += pixelSize) {
+                for (let x = 0; x < width; x += pixelSize) {
+                    let r = 0, g = 0, b = 0, count = 0;
+                    for (let dy = 0; dy < pixelSize && y + dy < height; dy++) {
+                        for (let dx = 0; dx < pixelSize && x + dx < width; dx++) {
+                            const idx = ((y + dy) * width + (x + dx)) * 4;
+                            r += data[idx];
+                            g += data[idx + 1];
+                            b += data[idx + 2];
+                            count++;
+                        }
+                    }
+                    r = Math.floor(r / count);
+                    g = Math.floor(g / count);
+                    b = Math.floor(b / count);
+                    for (let dy = 0; dy < pixelSize && y + dy < height; dy++) {
+                        for (let dx = 0; dx < pixelSize && x + dx < width; dx++) {
+                            const idx = ((y + dy) * width + (x + dx)) * 4;
+                            data[idx] = r;
+                            data[idx + 1] = g;
+                            data[idx + 2] = b;
+                        }
+                    }
+                }
+            }
+        }
+        
+        function applyBlackWhite(data) {
+            for (let i = 0; i < data.length; i += 4) {
+                const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+                data[i] = gray;
+                data[i + 1] = gray;
+                data[i + 2] = gray;
+            }
+        }
+        
+        function applySepia(data) {
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i + 1];
+                const b = data[i + 2];
+                data[i] = Math.min(255, (r * 0.393) + (g * 0.769) + (b * 0.189));
+                data[i + 1] = Math.min(255, (r * 0.349) + (g * 0.686) + (b * 0.168));
+                data[i + 2] = Math.min(255, (r * 0.272) + (g * 0.534) + (b * 0.131));
+            }
+        }
+        
+        function applyNegative(data) {
+            for (let i = 0; i < data.length; i += 4) {
+                data[i] = 255 - data[i];
+                data[i + 1] = 255 - data[i + 1];
+                data[i + 2] = 255 - data[i + 2];
+            }
+        }
+        
+        function applyBlur(data, width, height) {
+            const radius = 5;
+            const temp = new Uint8ClampedArray(data);
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    let r = 0, g = 0, b = 0, count = 0;
+                    for (let dy = -radius; dy <= radius; dy++) {
+                        for (let dx = -radius; dx <= radius; dx++) {
+                            const nx = x + dx;
+                            const ny = y + dy;
+                            if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                                const idx = (ny * width + nx) * 4;
+                                r += temp[idx];
+                                g += temp[idx + 1];
+                                b += temp[idx + 2];
+                                count++;
+                            }
+                        }
+                    }
+                    const idx = (y * width + x) * 4;
+                    data[idx] = r / count;
+                    data[idx + 1] = g / count;
+                    data[idx + 2] = b / count;
+                }
+            }
+        }
+        
+        // UI Functions (copied from main version)
+        function formatFilterName(filter) {
+            if (filter === 'dropout_logo') return 'DROPOUT';
+            if (filter === 'dropout_face_mask_sam' || filter === 'assets_face_mask_sam' || filter === 'sam_face_mask') return 'Sam';
+            if (filter === 'dropout_face_mask_ariel' || filter === 'assets_face_mask_ariel' || filter === 'ariel_face_mask') return 'Ariel';
+            const parts = filter.split('_');
+            if (parts.length >= 3) {
+                const option = parts[parts.length - 1];
+                return option.charAt(0).toUpperCase() + option.slice(1);
+            }
+            return filter.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+        
+        function updateStatus(message, type = '') {
+            statusDiv.textContent = message;
+            statusDiv.className = type;
+            if (controlsVisible) {
+                statusDiv.classList.remove('hidden');
+            } else {
+                statusDiv.classList.add('hidden');
+            }
+        }
+        
+        function toggleUI() {
+            controlsVisible = !controlsVisible;
+            if (controlsVisible) {
+                controls.classList.remove('hidden');
+                controls.classList.add('visible');
+                statusDiv.classList.remove('hidden');
+                // Auto-hide after 5 seconds
+                clearTimeout(uiHideTimeout);
+                uiHideTimeout = setTimeout(() => {
+                    if (controlsVisible) {
+                        toggleUI();
+                    }
+                }, 5000);
+            } else {
+                controls.classList.remove('visible');
+                controls.classList.add('hidden');
+                statusDiv.classList.add('hidden');
+            }
+        }
+        
+        // Load cameras
+        async function loadCameras() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                cameraSelect.innerHTML = '';
+                videoDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.textContent = device.label || `Camera ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+                const savedCameraId = localStorage.getItem('wesworld-fx-camera');
+                if (savedCameraId) {
+                    const cameraExists = Array.from(cameraSelect.options).some(opt => opt.value === savedCameraId);
+                    if (cameraExists) {
+                        cameraSelect.value = savedCameraId;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading cameras:', error);
+                updateStatus('Error loading cameras', 'error');
+            }
+        }
+        
+        // Start camera
+        async function startCamera() {
+            try {
+                const deviceId = cameraSelect.value;
+                const constraints = {
+                    video: {
+                        deviceId: deviceId ? { exact: deviceId } : undefined,
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    }
+                };
+                
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                videoInput.srcObject = localStream;
+                
+                if (deviceId) {
+                    localStorage.setItem('wesworld-fx-camera', deviceId);
+                }
+                localStorage.setItem('wesworld-fx-camera-active', 'true');
+                
+                videoInput.onloadedmetadata = () => {
+                    canvasOutput.width = videoInput.videoWidth;
+                    canvasOutput.height = videoInput.videoHeight;
+                    
+                    // Start MediaPipe camera
+                    camera = new Camera(videoInput, {
+                        onFrame: async () => {
+                            await faceDetection.send({image: videoInput});
+                        },
+                        width: videoInput.videoWidth,
+                        height: videoInput.videoHeight
+                    });
+                    camera.start().catch(err => {
+                        console.error('Camera start error:', err);
+                        updateStatus('Camera error: ' + err.message, 'error');
+                    });
+                    
+                    updateStatus('Camera active', 'connected');
+                    startButton.style.display = 'none';
+                    stopButton.style.display = 'block';
+                };
+            } catch (error) {
+                console.error('Error starting camera:', error);
+                updateStatus('Camera error: ' + error.message, 'error');
+                localStorage.setItem('wesworld-fx-camera-active', 'false');
+            }
+        }
+        
+        // Stop camera
+        function stopCamera() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+            if (camera) {
+                camera.stop();
+                camera = null;
+            }
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+            videoInput.srcObject = null;
+            ctx.clearRect(0, 0, canvasOutput.width, canvasOutput.height);
+            startButton.style.display = 'block';
+            stopButton.style.display = 'none';
+            updateStatus('Camera stopped', '');
+            localStorage.setItem('wesworld-fx-camera-active', 'false');
+        }
+        
+        // Load filters
+        function loadFilters() {
+            const fxOptionsContainer = document.getElementById('fxOptionsContainer');
+            fxOptionsContainer.innerHTML = '';
+            filterSelect.innerHTML = '<option value="">None (Original)</option>';
+            
+            // Add "None" option
+            const noneOption = document.createElement('button');
+            noneOption.className = 'fx-option none-option';
+            noneOption.textContent = 'None (Original)';
+            noneOption.value = '';
+            noneOption.onclick = () => selectFilter('');
+            fxOptionsContainer.appendChild(noneOption);
+            
+            // Add filters by category
+            Object.entries(FILTER_CATEGORIES).forEach(([category, filters]) => {
+                const group = document.createElement('div');
+                group.className = 'fx-group';
+                
+                const groupTitle = document.createElement('div');
+                groupTitle.className = 'fx-group-title';
+                groupTitle.textContent = category;
+                group.appendChild(groupTitle);
+                
+                filters.forEach(filter => {
+                    if (pinnedFilters.includes(filter)) return;
+                    
+                    const option = createFxOption(filter);
+                    group.appendChild(option);
+                    
+                    const selectOption = document.createElement('option');
+                    selectOption.value = filter;
+                    selectOption.textContent = formatFilterName(filter);
+                    filterSelect.appendChild(selectOption);
+                });
+                
+                fxOptionsContainer.appendChild(group);
+            });
+        }
+        
+        function createFxOption(filter) {
+            const option = document.createElement('button');
+            option.className = 'fx-option';
+            option.value = filter;
+            
+            if (filter.includes('face_mask')) {
+                const optionText = document.createElement('span');
+                optionText.className = 'fx-option-text';
+                optionText.textContent = formatFilterName(filter);
+                
+                const optionImage = document.createElement('img');
+                optionImage.className = 'fx-option-image';
+                const parts = filter.split('_');
+                const optionName = parts[parts.length - 1];
+                if (filter.startsWith('dropout_')) {
+                    optionImage.src = `assets/dropout/face_mask/${optionName}.png`;
+                }
+                optionImage.alt = formatFilterName(filter);
+                optionImage.onerror = function() {
+                    this.style.display = 'none';
+                };
+                
+                option.appendChild(optionImage);
+                option.appendChild(optionText);
+            } else {
+                const optionText = document.createElement('span');
+                optionText.className = 'fx-option-text';
+                optionText.textContent = formatFilterName(filter);
+                option.appendChild(optionText);
+            }
+            
+            if (filter) {
+                const pinIcon = document.createElement('span');
+                pinIcon.className = 'fx-option-pin';
+                pinIcon.innerHTML = pinnedFilters.includes(filter) ? '📌' : '📍';
+                pinIcon.title = pinnedFilters.includes(filter) ? 'Unpin' : 'Pin';
+                pinIcon.onclick = (e) => {
+                    e.stopPropagation();
+                    if (pinnedFilters.includes(filter)) {
+                        unpinFilter(filter);
+                    } else {
+                        if (!pinnedFilters.includes(filter)) {
+                            pinnedFilters.unshift(filter);
+                            savePinnedFilters();
+                            updatePinnedFxDisplay();
+                            loadFilters();
+                        }
+                    }
+                };
+                option.appendChild(pinIcon);
+            }
+            
+            option.onclick = () => selectFilter(filter);
+            return option;
+        }
+        
+        function selectFilter(filterValue, updateURL = true) {
+            currentFilter = filterValue || '';
+            filterSelect.value = currentFilter;
+            
+            if (currentFilter === '') {
+                fxSelectedText.textContent = 'None (Original)';
+                const fxCurrentPin = document.getElementById('fxCurrentPin');
+                if (fxCurrentPin) fxCurrentPin.style.display = 'none';
+            } else {
+                fxSelectedText.textContent = formatFilterName(currentFilter);
+                const fxCurrentPin = document.getElementById('fxCurrentPin');
+                if (fxCurrentPin) {
+                    fxCurrentPin.style.display = 'flex';
+                    updateCurrentPinIcon(currentFilter);
+                }
+            }
+            
+            const allOptions = fxDropdownMenu.querySelectorAll('.fx-option');
+            allOptions.forEach(opt => {
+                opt.classList.remove('selected');
+                if (opt.value === currentFilter) {
+                    opt.classList.add('selected');
+                }
+            });
+            
+            fxDropdownMenu.classList.remove('open');
+            fxDropdownButton.classList.remove('open');
+        }
+        
+        function updateCurrentPinIcon(filterValue) {
+            const fxCurrentPin = document.getElementById('fxCurrentPin');
+            if (!fxCurrentPin || !filterValue) return;
+            const isPinned = pinnedFilters.includes(filterValue);
+            fxCurrentPin.innerHTML = isPinned ? '📌' : '📍';
+            fxCurrentPin.title = isPinned ? 'Unpin current FX' : 'Pin current FX';
+        }
+        
+        function pinCurrentFilter() {
+            const currentFilter = filterSelect.value || '';
+            if (currentFilter && !pinnedFilters.includes(currentFilter)) {
+                pinnedFilters.unshift(currentFilter);
+                savePinnedFilters();
+                updatePinnedFxDisplay();
+                updateCurrentPinIcon(currentFilter);
+                loadFilters();
+            }
+        }
+        
+        function unpinFilter(filterName) {
+            pinnedFilters = pinnedFilters.filter(f => f !== filterName);
+            savePinnedFilters();
+            updatePinnedFxDisplay();
+            if (filterSelect.value === filterName) {
+                updateCurrentPinIcon(filterName);
+            }
+            loadFilters();
+        }
+        
+        function loadPinnedFilters() {
+            try {
+                const saved = localStorage.getItem('wesworld-fx-pinned');
+                if (saved) {
+                    pinnedFilters = JSON.parse(saved);
+                } else {
+                    pinnedFilters = [];
+                }
+                updatePinnedFxDisplay();
+                const currentFilter = filterSelect.value || '';
+                if (currentFilter) {
+                    updateCurrentPinIcon(currentFilter);
+                }
+            } catch (error) {
+                console.error('Error loading pinned filters:', error);
+                pinnedFilters = [];
+            }
+        }
+        
+        function savePinnedFilters() {
+            try {
+                localStorage.setItem('wesworld-fx-pinned', JSON.stringify(pinnedFilters));
+            } catch (error) {
+                console.error('Error saving pinned filters:', error);
+            }
+        }
+        
+        function updatePinnedFxDisplay() {
+            const container = document.getElementById('pinnedFxContainer');
+            container.innerHTML = '';
+            container.className = 'pinned-fx-container';
+            
+            if (pinnedFilters.length === 0) {
+                container.innerHTML = '<span style="color: var(--text-secondary-color, #cccccc); font-size: 11px;">No pinned FX</span>';
+                return;
+            }
+            
+            pinnedFilters.forEach((filterName) => {
+                const item = document.createElement('div');
+                item.className = 'pinned-fx-item pinned';
+                item.draggable = true;
+                item.dataset.filterName = filterName;
+                
+                const text = document.createElement('span');
+                text.className = 'pinned-fx-item-text';
+                text.textContent = formatFilterName(filterName);
+                text.onclick = () => selectFilter(filterName);
+                
+                const removeBtn = document.createElement('span');
+                removeBtn.className = 'pinned-fx-item-remove';
+                removeBtn.textContent = '×';
+                removeBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    unpinFilter(filterName);
+                };
+                
+                item.appendChild(text);
+                item.appendChild(removeBtn);
+                
+                // Drag and drop
+                item.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', filterName);
+                    item.classList.add('dragging');
+                });
+                
+                item.addEventListener('dragend', (e) => {
+                    item.classList.remove('dragging');
+                    document.querySelectorAll('.pinned-fx-item').forEach(el => {
+                        el.classList.remove('drag-over');
+                    });
+                });
+                
+                item.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    item.classList.add('drag-over');
+                });
+                
+                item.addEventListener('dragleave', (e) => {
+                    item.classList.remove('drag-over');
+                });
+                
+                item.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    item.classList.remove('drag-over');
+                    const draggedFilterName = e.dataTransfer.getData('text/plain');
+                    if (draggedFilterName && draggedFilterName !== filterName) {
+                        const draggedIndex = pinnedFilters.indexOf(draggedFilterName);
+                        const targetIndex = pinnedFilters.indexOf(filterName);
+                        if (draggedIndex !== -1 && targetIndex !== -1) {
+                            pinnedFilters.splice(draggedIndex, 1);
+                            pinnedFilters.splice(targetIndex, 0, draggedFilterName);
+                            savePinnedFilters();
+                            updatePinnedFxDisplay();
+                        }
+                    }
+                });
+                
+                container.appendChild(item);
+            });
+        }
+        
+        function filterFxOptions(searchQuery) {
+            const searchLower = searchQuery.toLowerCase().trim();
+            const optionsContainer = document.getElementById('fxOptionsContainer');
+            const pinnedContainer = document.getElementById('pinnedFxContainer');
+            
+            if (!searchLower) {
+                if (optionsContainer) {
+                    const allOptions = optionsContainer.querySelectorAll('.fx-option');
+                    const allGroups = optionsContainer.querySelectorAll('.fx-group');
+                    allOptions.forEach(option => option.style.display = '');
+                    allGroups.forEach(group => group.style.display = '');
+                }
+                if (pinnedContainer) {
+                    const pinnedItems = pinnedContainer.querySelectorAll('.pinned-fx-item');
+                    pinnedItems.forEach(item => item.style.display = '');
+                }
+                return;
+            }
+            
+            function matchesFilter(filterValue, displayText) {
+                const filterName = formatFilterName(filterValue).toLowerCase();
+                const text = displayText.toLowerCase();
+                return text.includes(searchLower) || filterName.includes(searchLower) || filterValue.toLowerCase().includes(searchLower);
+            }
+            
+            if (pinnedContainer) {
+                const pinnedItems = pinnedContainer.querySelectorAll('.pinned-fx-item');
+                pinnedItems.forEach(item => {
+                    const filterName = item.dataset.filterName || '';
+                    const text = item.textContent.toLowerCase();
+                    item.style.display = matchesFilter(filterName, text) ? '' : 'none';
+                });
+            }
+            
+            if (optionsContainer) {
+                const allGroups = optionsContainer.querySelectorAll('.fx-group');
+                const allOptions = optionsContainer.querySelectorAll('.fx-option');
+                
+                allOptions.forEach(option => {
+                    const textElement = option.querySelector('.fx-option-text');
+                    const text = textElement ? textElement.textContent.toLowerCase() : option.textContent.toLowerCase().replace(/📍|📌/g, '').trim();
+                    const filterValue = option.value || '';
+                    const filterName = formatFilterName(filterValue).toLowerCase();
+                    const isPinned = pinnedFilters.includes(filterValue);
+                    
+                    if (isPinned) {
+                        option.style.display = 'none';
+                    } else {
+                        const matches = text.includes(searchLower) || filterName.includes(searchLower) || filterValue.toLowerCase().includes(searchLower);
+                        option.style.display = matches ? '' : 'none';
+                    }
+                });
+                
+                allGroups.forEach(group => {
+                    const childOptions = group.querySelectorAll('.fx-option');
+                    let hasVisibleChild = false;
+                    childOptions.forEach(child => {
+                        if (child.style.display !== 'none') {
+                            hasVisibleChild = true;
+                        }
+                    });
+                    group.style.display = hasVisibleChild ? '' : 'none';
+                });
+            }
+        }
+        
+        function toggleFxDropdown() {
+            const isOpen = fxDropdownMenu.classList.contains('open');
+            if (isOpen) {
+                fxDropdownMenu.classList.remove('open');
+                fxDropdownButton.classList.remove('open');
+                const fxSearchInput = document.getElementById('fxSearchInput');
+                if (fxSearchInput) {
+                    fxSearchInput.value = '';
+                    filterFxOptions('');
+                }
+            } else {
+                fxDropdownMenu.classList.add('open');
+                fxDropdownButton.classList.add('open');
+                const fxSearchInput = document.getElementById('fxSearchInput');
+                if (fxSearchInput) {
+                    setTimeout(() => fxSearchInput.focus(), 100);
+                }
+            }
+        }
+        
+        function cycleNextFilter() {
+            if (pinnedFilters.length > 0) {
+                const currentIndex = pinnedFilters.indexOf(currentFilter);
+                const nextIndex = (currentIndex + 1) % pinnedFilters.length;
+                selectFilter(pinnedFilters[nextIndex]);
+            } else {
+                const currentIndex = allFilters.indexOf(currentFilter);
+                const nextIndex = (currentIndex + 1) % allFilters.length;
+                selectFilter(allFilters[nextIndex]);
+            }
+        }
+        
+        function cyclePrevFilter() {
+            if (pinnedFilters.length > 0) {
+                const currentIndex = pinnedFilters.indexOf(currentFilter);
+                const prevIndex = (currentIndex - 1 + pinnedFilters.length) % pinnedFilters.length;
+                selectFilter(pinnedFilters[prevIndex]);
+            } else {
+                const currentIndex = allFilters.indexOf(currentFilter);
+                const prevIndex = (currentIndex - 1 + allFilters.length) % allFilters.length;
+                selectFilter(allFilters[prevIndex]);
+            }
+        }
+        
+        function startRandomCycle() {
+            if (isRandomCycling) return;
+            isRandomCycling = true;
+            const filters = pinnedFilters.length > 0 ? pinnedFilters : allFilters;
+            if (filters.length === 0) {
+                isRandomCycling = false;
+                return;
+            }
+            let cycles = 0;
+            const maxCycles = 10;
+            randomCycleInterval = setInterval(() => {
+                const randomFilter = filters[Math.floor(Math.random() * filters.length)];
+                selectFilter(randomFilter, false);
+                cycles++;
+                if (cycles >= maxCycles) {
+                    clearInterval(randomCycleInterval);
+                    const finalFilter = filters[Math.floor(Math.random() * filters.length)];
+                    selectFilter(finalFilter, true);
+                    isRandomCycling = false;
+                }
+            }, 100);
+        }
+        
+        // Load themes
+        async function loadThemes() {
+            // Default theme
+            const defaultTheme = {
+                colors: {
+                    background: "#000000",
+                    surface: "#1a1a1a",
+                    surfaceHover: "#2a2a2a",
+                    text: "#ffffff",
+                    textSecondary: "#cccccc",
+                    accent: "#5250ef",
+                    accentHover: "#6260ff",
+                    border: "#333333",
+                    borderHover: "#5250ef",
+                    button: "#5250ef",
+                    buttonHover: "#6260ff",
+                    statusConnected: "#4caf50",
+                    statusError: "#f44336",
+                    groupTitle: "#5250ef",
+                    selectedText: "#ffffff"
+                }
+            };
+            applyTheme(defaultTheme);
+            themeSelect.innerHTML = '<option value="wesworld">WesWorld</option>';
+        }
+        
+        function applyTheme(theme) {
+            if (theme.colors) {
+                const root = document.documentElement;
+                Object.entries(theme.colors).forEach(([key, value]) => {
+                    root.style.setProperty(`--${key.replace(/([A-Z])/g, '-$1').toLowerCase()}`, value);
+                });
+            }
+        }
+        
+        // Auto-start camera if needed
+        function autoStartCameraIfNeeded() {
+            const wasCameraActive = localStorage.getItem('wesworld-fx-camera-active') === 'true';
+            if (wasCameraActive && cameraSelect.value) {
+                startCamera();
+            }
+        }
+        
+        // Event listeners
+        startButton.addEventListener('click', startCamera);
+        stopButton.addEventListener('click', stopCamera);
+        
+        cameraSelect.addEventListener('change', async () => {
+            if (localStream) {
+                stopCamera();
+                setTimeout(() => startCamera(), 100);
+            }
+        });
+        
+        fxDropdownButton.addEventListener('click', (e) => {
+            if (e.target.id === 'fxCurrentPin' || e.target.closest('#fxCurrentPin')) {
+                return;
+            }
+            toggleFxDropdown();
+        });
+        
+        const fxCurrentPin = document.getElementById('fxCurrentPin');
+        if (fxCurrentPin) {
+            fxCurrentPin.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const currentFilter = filterSelect.value || '';
+                if (currentFilter) {
+                    if (pinnedFilters.includes(currentFilter)) {
+                        unpinFilter(currentFilter);
+                    } else {
+                        pinCurrentFilter();
+                    }
+                }
+            });
+        }
+        
+        const fxSearchInput = document.getElementById('fxSearchInput');
+        if (fxSearchInput) {
+            fxSearchInput.addEventListener('input', (e) => {
+                const searchValue = e.target.value;
+                if (searchValue.trim()) {
+                    const fxDropdownMenu = document.getElementById('fxDropdownMenu');
+                    const fxDropdownButton = document.getElementById('fxDropdownButton');
+                    if (fxDropdownMenu && !fxDropdownMenu.classList.contains('open')) {
+                        fxDropdownMenu.classList.add('open');
+                        fxDropdownButton.classList.add('open');
+                    }
+                }
+                filterFxOptions(searchValue);
+            });
+            
+            fxSearchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    fxSearchInput.value = '';
+                    filterFxOptions('');
+                } else if (e.key === 'Enter') {
+                    const pinnedContainer = document.getElementById('pinnedFxContainer');
+                    const optionsContainer = document.getElementById('fxOptionsContainer');
+                    let firstVisible = null;
+                    if (pinnedContainer) {
+                        firstVisible = pinnedContainer.querySelector('.pinned-fx-item:not([style*="display: none"])');
+                        if (firstVisible && firstVisible.dataset.filterName) {
+                            selectFilter(firstVisible.dataset.filterName);
+                            return;
+                        }
+                    }
+                    if (optionsContainer) {
+                        firstVisible = optionsContainer.querySelector('.fx-option:not([style*="display: none"])');
+                        if (firstVisible && firstVisible.value !== undefined) {
+                            selectFilter(firstVisible.value);
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
+                return;
+            }
+            if (e.key === 'h' || e.key === 'H') {
+                e.preventDefault();
+                toggleUI();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                cyclePrevFilter();
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                cycleNextFilter();
+            } else if (e.key === ' ') {
+                e.preventDefault();
+                startRandomCycle();
+            }
+        });
+        
+        // Initialize
+        async function init() {
+            initFaceDetection();
+            await loadThemes();
+            loadPinnedFilters();
+            await loadCameras();
+            loadFilters();
+            autoStartCameraIfNeeded();
+            updateStatus('Ready', 'connected');
+            // Show UI initially
+            controlsVisible = true;
+            controls.classList.add('visible');
+            setTimeout(() => {
+                if (controlsVisible) {
+                    toggleUI();
+                }
+            }, 3000);
+        }
+        
+        init();
+    </script>
+</body>
+</html>
