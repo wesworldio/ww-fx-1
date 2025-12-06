@@ -819,7 +819,10 @@
                                     typeof d.box.x === 'number'
                                 );
                                 if (safeDetections.length > 0) {
+                                    console.log('Passing', safeDetections.length, 'safe detections to applyFilterWithFaceApi');
                                     applyFilterWithFaceApi(ctx, safeDetections);
+                                } else {
+                                    console.log('No safe detections to pass');
                                 }
                             }
                         }
