@@ -1208,7 +1208,8 @@
                     // But use smoothed/stable position to prevent flickering
                     
                     // Store the last known position so mask never disappears
-                    lastKnownMaskPosition = { x, y, width, height };
+                    // Use locked position if available, otherwise use current calculated position
+                    lastKnownMaskPosition = lockedMaskPosition || { x, y, width, height };
                     
                     // Draw face mask synchronously (images are preloaded)
                     applyFaceMaskSync(ctx, x, y, width, height);
