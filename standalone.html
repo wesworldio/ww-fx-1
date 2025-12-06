@@ -929,11 +929,25 @@
                                 }
                             }
                             
-                            // If no current detection but we have recent successful mask data, use it (5-second persistence)
-                            if (!shouldDrawMask && lastSuccessfulMaskData && 
-                                (now - lastSuccessfulMaskTime) < maskPersistenceTimeout) {
-                                // Use last successful mask position (debounced persistence)
+                            // Always use last successful mask data if available (never hide mask)
+                            if (!shouldDrawMask && lastSuccessfulMaskData) {
+                                // Use last successful mask position - keep mask visible forever
                                 maskDataToUse = [lastSuccessfulMaskData];
+                                shouldDrawMask = true;
+                            }
+                            
+                            // If we have a last known position but no detection data, use the cached position
+                            if (!shouldDrawMask && lastKnownMaskPosition) {
+                                // Create a fake detection from the last known position
+                                maskDataToUse = [{
+                                    box: {
+                                        x: lastKnownMaskPosition.x,
+                                        y: lastKnownMaskPosition.y,
+                                        width: lastKnownMaskPosition.width,
+                                        height: lastKnownMaskPosition.height
+                                    },
+                                    landmarks: null
+                                }];
                                 shouldDrawMask = true;
                             }
                             
