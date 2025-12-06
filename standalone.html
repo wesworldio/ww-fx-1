@@ -842,7 +842,10 @@
             
             if (currentFilter.includes('face_mask')) {
                 // Apply face mask to each detected face with proper offsets
-                detections.forEach(detection => {
+                // Filter out invalid detections first
+                const validDetections = detections.filter(d => d && d.box && d.box.x !== undefined && d.box.y !== undefined);
+                
+                validDetections.forEach(detection => {
                     if (!detection || !detection.box) return;
                     
                     const box = detection.box;
