@@ -481,12 +481,20 @@
         function initFaceDetection() {
             faceDetection = new FaceDetection({
                 locateFile: (file) => {
+                    // Handle different file types
+                    if (file.endsWith('.wasm')) {
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`;
+                    } else if (file.endsWith('.tflite')) {
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`;
+                    } else if (file.endsWith('.binarypb')) {
+                        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`;
+                    }
                     return `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`;
                 }
             });
             
             faceDetection.setOptions({
-                modelSelection: 1, // 0 for short-range, 1 for full-range
+                modelSelection: 0, // 0 for short-range (more reliable), 1 for full-range
                 minDetectionConfidence: 0.5
             });
             
