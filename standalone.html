@@ -810,6 +810,20 @@
                             // Always use lastValidDetections for rendering (prevents flickering)
                             // This ensures mask stays visible even if detection fails temporarily
                             if (lastValidDetections && Array.isArray(lastValidDetections) && lastValidDetections.length > 0) {
+                                // Log the raw structure first
+                                if (lastValidDetections[0]) {
+                                    const firstDet = lastValidDetections[0];
+                                    console.log('Raw detection structure:', {
+                                        allKeys: Object.keys(firstDet),
+                                        hasBox: !!firstDet.box,
+                                        hasDetection: !!firstDet.detection,
+                                        hasDetectionBox: !!(firstDet.detection && firstDet.detection.box),
+                                        detectionKeys: firstDet.detection ? Object.keys(firstDet.detection) : null,
+                                        boxValue: firstDet.box,
+                                        detectionBoxValue: (firstDet.detection && firstDet.detection.box) ? firstDet.detection.box : null
+                                    });
+                                }
+                                
                                 // When using .withFaceLandmarks(), face-api.js returns detections with nested structure:
                                 // detection.detection.box (the bounding box)
                                 // detection.landmarks (the landmarks)
@@ -817,21 +831,41 @@
                                 const safeDetections = lastValidDetections.map(d => {
                                     // If detection has nested structure, extract the box
                                     if (d.detection && d.detection.box) {
+                                        console.log('Found nested box structure, normalizing');
                                         return {
                                             box: d.detection.box,
                                             landmarks: d.landmarks
                                         };
                                     }
-                                    // Otherwise, assume it's already in the correct format
-                                    return d;
+                                    // If box is directly on the detection object
+                                    if (d.box) {
+                                        console.log('Found direct box structure');
+                                        return {
+                                            box: d.box,
+                                            landmarks: d.landmarks
+                                        };
+                                    }
+                                    // Return null if no box found
+                                    console.warn('No box found in detection:', Object.keys(d));
+                                    return null;
                                 }).filter(d => {
-                                    if (!d || typeof d !== 'object') return false;
-                                    if (!d.box || typeof d.box !== 'object') return false;
+                                    if (!d || typeof d !== 'object') {
+                                        console.log('Filtered out: not an object');
+                                        return false;
+                                    }
+                                    if (!d.box || typeof d.box !== 'object') {
+                                        console.log('Filtered out: no box or box not object');
+                                        return false;
+                                    }
                                     // Check all required box properties
-                                    return typeof d.box.x === 'number' && 
-                                           typeof d.box.y === 'number' &&
-                                           typeof d.box.width === 'number' &&
-                                           typeof d.box.height === 'number';
+                                    const isValid = typeof d.box.x === 'number' && 
+                                                   typeof d.box.y === 'number' &&
+                                                   typeof d.box.width === 'number' &&
+                                                   typeof d.box.height === 'number';
+                                    if (!isValid) {
+                                        console.log('Filtered out: invalid box properties', d.box);
+                                    }
+                                    return isValid;
                                 });
                                 
                                 if (safeDetections.length > 0) {
