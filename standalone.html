@@ -800,13 +800,38 @@
                                         .withFaceLandmarks();
                                     
                                     if (detections && detections.length > 0) {
-                                        // Only update if we got valid detections
-                                        cachedDetections = detections;
-                                        lastValidDetections = detections; // Update last valid
-                                        // Clear normalized cache so it gets re-normalized with new detections
-                                        normalizedDetectionsCache = [];
-                                        // Update last successful mask time
-                                        lastSuccessfulMaskTime = Date.now();
+                                        // Only update if we got valid detections AND they're significantly different
+                                        // Check if the new detection is significantly different from the last one
+                                        let shouldUpdate = true;
+                                        if (lastValidDetections && lastValidDetections.length > 0 && 
+                                            detections.length > 0) {
+                                            const oldDetection = lastValidDetections[0];
+                                            const newDetection = detections[0];
+                                            const oldBox = (oldDetection.detection && oldDetection.detection.box) || oldDetection.box;
+                                            const newBox = (newDetection.detection && newDetection.detection.box) || newDetection.box;
+                                            if (oldBox && newBox) {
+                                                const dx = Math.abs(newBox.x - oldBox.x);
+                                                const dy = Math.abs(newBox.y - oldBox.y);
+                                                const dw = Math.abs(newBox.width - oldBox.width);
+                                                const dh = Math.abs(newBox.height - oldBox.height);
+                                                // Only update if detection changed significantly (more than 15 pixels)
+                                                if (dx < 15 && dy < 15 && dw < 15 && dh < 15) {
+                                                    shouldUpdate = false; // Keep using old detection
+                                                }
+                                            }
+                                        }
+                                        
+                                        if (shouldUpdate) {
+                                            cachedDetections = detections;
+                                            lastValidDetections = detections; // Update last valid
+                                            // Clear normalized cache so it gets re-normalized with new detections
+                                            normalizedDetectionsCache = [];
+                                            // Clear cached mask position to force recalculation
+                                            cachedMaskPosition = null;
+                                            lastDetectionHash = null;
+                                            // Update last successful mask time
+                                            lastSuccessfulMaskTime = Date.now();
+                                        }
                                     }
                                     // If no detections, keep using lastValidDetections (don't clear)
                                     // The mask will persist for 5 seconds using lastSuccessfulMaskData
