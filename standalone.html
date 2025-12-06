@@ -415,7 +415,7 @@
     <script src="https://unpkg.com/face-api.js@0.22.2/dist/face-api.min.js"></script>
     
     <!-- Shared filter implementations -->
-    <script src="filters.js"></script>
+    <script src="static/filters.js"></script>
     
     <script>
         // State
@@ -559,7 +559,10 @@
                             // Only detect faces periodically to improve performance
                             if (now - lastFaceDetectionTime > faceDetectionInterval) {
                                 try {
-                                    const detections = await faceapi.detectAllFaces(videoInput, new faceapi.TinyFaceDetectorOptions());
+                                    // Use withFaceLandmarks to get eye positions for proper mask alignment
+                                    const detections = await faceapi
+                                        .detectAllFaces(videoInput, new faceapi.TinyFaceDetectorOptions())
+                                        .withFaceLandmarks();
                                     if (detections && detections.length > 0) {
                                         cachedDetections = detections;
                                         lastValidDetections = detections; // Update last valid
@@ -1253,8 +1256,13 @@
             
             // Update URL if requested
             if (updateURL) {
+                // Initialize playlist if not exists
+                if (!window.fxPlaylist) {
+                    window.fxPlaylist = null;
+                }
                 const playlist = window.fxPlaylist || null;
                 updateURLWithFX(filterValue, playlist);
+                console.log('URL updated with FX:', filterValue, 'Playlist:', playlist);
             }
         }
         
