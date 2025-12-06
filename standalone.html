@@ -1340,10 +1340,10 @@
             }, 100);
         }
         
-        // Load themes
-        async function loadThemes() {
-            // Default theme
-            const defaultTheme = {
+        // Theme definitions (hardcoded for standalone)
+        const THEMES = {
+            wesworld: {
+                name: "WesWorld",
                 colors: {
                     background: "#000000",
                     surface: "#1a1a1a",
@@ -1361,10 +1361,58 @@
                     groupTitle: "#5250ef",
                     selectedText: "#ffffff"
                 }
-            };
-            applyTheme(defaultTheme);
-            themeSelect.innerHTML = '<option value="wesworld">WesWorld</option>';
+            },
+            dropout: {
+                name: "Dropout",
+                colors: {
+                    background: "#0a0a0a",
+                    surface: "#1a1a1a",
+                    surfaceHover: "#2a2a2a",
+                    text: "#ffffff",
+                    textSecondary: "#e0e0e0",
+                    accent: "#feea3b",
+                    accentHover: "#fff04a",
+                    border: "#333333",
+                    borderHover: "#feea3b",
+                    button: "#feea3b",
+                    buttonHover: "#fff04a",
+                    statusConnected: "#4caf50",
+                    statusError: "#ff4444",
+                    groupTitle: "#feea3b",
+                    selectedText: "#000000"
+                }
+            }
+        };
+        
+        // Load themes
+        async function loadThemes() {
+            // Populate theme dropdown
+            themeSelect.innerHTML = '';
+            Object.keys(THEMES).forEach(themeKey => {
+                const option = document.createElement('option');
+                option.value = themeKey;
+                option.textContent = THEMES[themeKey].name;
+                themeSelect.appendChild(option);
+            });
+            
+            // Load saved theme or use default
+            const savedTheme = localStorage.getItem('wesworld-fx-theme') || 'wesworld';
+            if (THEMES[savedTheme]) {
+                themeSelect.value = savedTheme;
+                applyTheme(THEMES[savedTheme]);
+            } else {
+                applyTheme(THEMES.wesworld);
+            }
         }
+        
+        // Theme change handler
+        themeSelect.addEventListener('change', (e) => {
+            const themeKey = e.target.value;
+            if (THEMES[themeKey]) {
+                applyTheme(THEMES[themeKey]);
+                localStorage.setItem('wesworld-fx-theme', themeKey);
+            }
+        });
         
         function applyTheme(theme) {
             if (theme.colors) {
@@ -1484,19 +1532,36 @@
                     return;
                 }
                 
-                // Check every 100ms for up to 10 seconds
-                let attempts = 0;
-                const maxAttempts = 100;
-                const checkInterval = setInterval(() => {
-                    attempts++;
-                    if (typeof faceapi !== 'undefined') {
-                        clearInterval(checkInterval);
-                        resolve();
-                    } else if (attempts >= maxAttempts) {
-                        clearInterval(checkInterval);
-                        reject(new Error('face-api.js failed to load after 10 seconds'));
-                    }
-                }, 100);
+                // Check if script tag exists and wait for it to load
+                const scriptTag = document.querySelector('script[src*="face-api"]');
+                if (scriptTag) {
+                    scriptTag.addEventListener('load', () => {
+                        if (typeof faceapi !== 'undefined') {
+                            resolve();
+                        } else {
+                            reject(new Error('face-api.js script loaded but faceapi object not found'));
+                        }
+                    });
+                    scriptTag.addEventListener('error', () => {
+                        reject(new Error('Failed to load face-api.js script'));
+                    });
+                    
+                    // Also check periodically as fallback
+                    let attempts = 0;
+                    const maxAttempts = 100;
+                    const checkInterval = setInterval(() => {
+                        attempts++;
+                        if (typeof faceapi !== 'undefined') {
+                            clearInterval(checkInterval);
+                            resolve();
+                        } else if (attempts >= maxAttempts) {
+                            clearInterval(checkInterval);
+                            reject(new Error('face-api.js failed to load after 10 seconds'));
+                        }
+                    }, 100);
+                } else {
+                    reject(new Error('face-api.js script tag not found'));
+                }
             });
         }
         
