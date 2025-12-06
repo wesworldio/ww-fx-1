@@ -838,12 +838,25 @@
         
         // Apply filter to canvas using face-api.js detections
         function applyFilterWithFaceApi(ctx, detections) {
-            if (!detections || detections.length === 0) return;
+            if (!detections || !Array.isArray(detections) || detections.length === 0) return;
             
             if (currentFilter.includes('face_mask')) {
                 // Apply face mask to each detected face with proper offsets
-                // Filter out invalid detections first
-                const validDetections = detections.filter(d => d && d.box && d.box.x !== undefined && d.box.y !== undefined);
+                // Filter out invalid detections first - check each property safely
+                const validDetections = detections.filter(d => {
+                    try {
+                        return d && 
+                               typeof d === 'object' && 
+                               d.box && 
+                               typeof d.box === 'object' &&
+                               typeof d.box.x === 'number' && 
+                               typeof d.box.y === 'number' &&
+                               typeof d.box.width === 'number' &&
+                               typeof d.box.height === 'number';
+                    } catch (e) {
+                        return false;
+                    }
+                });
                 
                 validDetections.forEach(detection => {
                     if (!detection || !detection.box) return;
