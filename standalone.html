@@ -395,7 +395,7 @@
                 </button>
                 <div class="fx-dropdown-menu" id="fxDropdownMenu">
                     <div id="fxOptionsContainer"></div>
-                </div>
+            </div>
             </div>
             <select id="filterSelect" style="display: none;"></select>
         </label>
@@ -782,18 +782,22 @@
                 }
                 
                 // Draw video frame
-                ctx.drawImage(videoInput, 0, 0, canvasOutput.width, canvasOutput.height);
-                
-                // Apply filter if selected
+            ctx.drawImage(videoInput, 0, 0, canvasOutput.width, canvasOutput.height);
+            
+            // Apply filter if selected
                 if (currentFilter) {
                     if (currentFilter.includes('face_mask') || currentFilter.includes('logo')) {
                         // Face-specific filters - detect faces using face-api.js
                         if (faceApiModelsLoaded) {
                             // Get current time for both detection interval and persistence checks
                             const now = Date.now();
-                            // Only detect faces periodically to improve performance
-                            // Use cached detections between intervals to prevent flickering
-                            if (now - lastFaceDetectionTime > faceDetectionInterval && !isDetecting) {
+                            
+                            // If we have a locked position, skip detection entirely to prevent flickering
+                            // Only check for detection if we need to update the locked position (very large movement)
+                            if (lockedMaskPosition) {
+                                // Skip all detection - just draw at locked position
+                                // This prevents any flickering from detection updates
+                            } else if (now - lastFaceDetectionTime > faceDetectionInterval && !isDetecting) {
                                 isDetecting = true;
                                 try {
                                     // Use withFaceLandmarks to get eye positions for proper mask alignment
@@ -1631,7 +1635,7 @@
                 groupTitle.textContent = category;
                 group.appendChild(groupTitle);
                 
-                filters.forEach(filter => {
+            filters.forEach(filter => {
                     if (pinnedFilters.includes(filter)) return;
                     
                     const option = createFxOption(filter);
@@ -1648,8 +1652,8 @@
         }
         
         function createFxOption(filter) {
-            const option = document.createElement('button');
-            option.className = 'fx-option';
+                const option = document.createElement('button');
+                option.className = 'fx-option';
             option.value = filter;
             
             if (filter.includes('face_mask')) {
@@ -1802,8 +1806,8 @@
                 }
             });
             
-            fxDropdownMenu.classList.remove('open');
-            fxDropdownButton.classList.remove('open');
+                    fxDropdownMenu.classList.remove('open');
+                    fxDropdownButton.classList.remove('open');
             
             // Update URL if requested
             if (updateURL) {
