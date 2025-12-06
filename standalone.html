@@ -1001,6 +1001,12 @@
         
         // Apply filter to canvas using face-api.js detections
         function applyFilterWithFaceApi(ctx, detections) {
+            // If we already have a locked position, don't recalculate - just return
+            // The caller should use the locked position directly instead
+            if (lockedMaskPosition) {
+                return;
+            }
+            
             if (!detections || !Array.isArray(detections) || detections.length === 0) return;
             
             if (currentFilter.includes('face_mask')) {
