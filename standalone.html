@@ -838,9 +838,13 @@
         
         // Apply filter to canvas using face-api.js detections
         function applyFilterWithFaceApi(ctx, detections) {
+            if (!detections || detections.length === 0) return;
+            
             if (currentFilter.includes('face_mask')) {
                 // Apply face mask to each detected face with proper offsets
                 detections.forEach(detection => {
+                    if (!detection || !detection.box) return;
+                    
                     const box = detection.box;
                     let x = box.x;
                     let y = box.y;
@@ -853,39 +857,61 @@
                         // Left eye landmarks: 36-41, Right eye landmarks: 42-47
                         const landmarks = detection.landmarks.positions || detection.landmarks;
                         
-                        if (landmarks && landmarks.length >= 48) {
+                        if (landmarks && Array.isArray(landmarks) && landmarks.length >= 48) {
                             // Calculate left eye center (average of left eye landmarks 36-41)
                             let leftEyeX = 0, leftEyeY = 0;
+                            let leftEyeCount = 0;
                             for (let i = 36; i <= 41; i++) {
-                                leftEyeX += landmarks[i].x;
-                                leftEyeY += landmarks[i].y;
+                                if (landmarks[i] && typeof landmarks[i].x === 'number' && typeof landmarks[i].y === 'number') {
+                                    leftEyeX += landmarks[i].x;
+                                    leftEyeY += landmarks[i].y;
+                                    leftEyeCount++;
+                                }
                             }
-                            leftEyeX /= 6;
-                            leftEyeY /= 6;
                             
                             // Calculate right eye center (average of right eye landmarks 42-47)
                             let rightEyeX = 0, rightEyeY = 0;
+                            let rightEyeCount = 0;
                             for (let i = 42; i <= 47; i++) {
-                                rightEyeX += landmarks[i].x;
-                                rightEyeY += landmarks[i].y;
+                                if (landmarks[i] && typeof landmarks[i].x === 'number' && typeof landmarks[i].y === 'number') {
+                                    rightEyeX += landmarks[i].x;
+                                    rightEyeY += landmarks[i].y;
+                                    rightEyeCount++;
+                                }
                             }
-                            rightEyeX /= 6;
-                            rightEyeY /= 6;
                             
-                            const eyeCenterX = (leftEyeX + rightEyeX) / 2;
-                            const eyeCenterY = (leftEyeY + rightEyeY) / 2;
-                            
-                            // Scale mask larger for better coverage (same as Python: 1.6x)
-                            const scaleFactor = 1.6;
-                            width = box.width * scaleFactor;
-                            height = box.height * scaleFactor;
-                            
-                            // Position mask: center horizontally on eye center
-                            x = eyeCenterX - width / 2;
-                            
-                            // Position vertically so eyes align - place eye center at ~35% from top of mask
-                            // Adjust upward by 40 pixels to better align eyes (same as Python implementation)
-                            y = eyeCenterY - height * 0.35 - 40;
+                            if (leftEyeCount > 0 && rightEyeCount > 0) {
+                                leftEyeX /= leftEyeCount;
+                                leftEyeY /= leftEyeCount;
+                                rightEyeX /= rightEyeCount;
+                                rightEyeY /= rightEyeCount;
+                                
+                                const eyeCenterX = (leftEyeX + rightEyeX) / 2;
+                                const eyeCenterY = (leftEyeY + rightEyeY) / 2;
+                                
+                                // Scale mask larger for better coverage (same as Python: 1.6x)
+                                const scaleFactor = 1.6;
+                                width = box.width * scaleFactor;
+                                height = box.height * scaleFactor;
+                                
+                                // Position mask: center horizontally on eye center
+                                x = eyeCenterX - width / 2;
+                                
+                                // Position vertically so eyes align - place eye center at ~35% from top of mask
+                                // Adjust upward by 40 pixels to better align eyes (same as Python implementation)
+                                y = eyeCenterY - height * 0.35 - 40;
+                            } else {
+                                // Fallback to bounding box with scale factor
+                                const scaleFactor = 1.6;
+                                width = box.width * scaleFactor;
+                                height = box.height * scaleFactor;
+                                
+                                // Center the larger mask on the detected face
+                                const offsetX = (width - box.width) / 2;
+                                const offsetY = (height - box.height) / 2;
+                                x = box.x - offsetX;
+                                y = box.y - offsetY;
+                            }
                         } else {
                             // Fallback to bounding box with scale factor
                             const scaleFactor = 1.6;
@@ -923,7 +949,7 @@
                 });
             } else if (currentFilter === 'dropout_logo') {
                 // Apply logo to first detected face
-                if (detections.length > 0) {
+                if (detections.length > 0 && detections[0] && detections[0].box) {
                     const detection = detections[0];
                     const box = detection.box;
                     const x = box.x;
