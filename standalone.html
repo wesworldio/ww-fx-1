@@ -1456,28 +1456,16 @@
                     const firstFX = fxParam || playlist[0];
                     console.log('Attempting to load FX:', firstFX, 'in allFilters:', allFilters.includes(firstFX));
                     if (firstFX) {
-                        // Check if filter exists in allFilters, or try to select it anyway
-                        if (allFilters.includes(firstFX)) {
-                            selectFilter(firstFX, false); // false = don't update URL (already set)
-                            console.log('Successfully loaded FX from URL:', firstFX);
-                        } else {
-                            console.warn('FX from URL not found in allFilters:', firstFX);
-                            // Try to select it anyway - might be a valid filter that's not in the list yet
-                            selectFilter(firstFX, false);
-                        }
+                        // Try to select it - selectFilter will handle validation
+                        selectFilter(firstFX, false); // false = don't update URL (already set)
+                        console.log('Selected FX from URL:', firstFX);
                     }
                 }
             } else if (fxParam) {
                 // Load single FX
-                console.log('Loading single FX:', fxParam, 'in allFilters:', allFilters.includes(fxParam));
-                if (allFilters.includes(fxParam)) {
-                    selectFilter(fxParam, false); // false = don't update URL (already set)
-                    console.log('Successfully loaded FX from URL:', fxParam);
-                } else {
-                    console.warn('FX from URL not found in allFilters:', fxParam);
-                    // Try to select it anyway
-                    selectFilter(fxParam, false);
-                }
+                console.log('Loading single FX:', fxParam);
+                selectFilter(fxParam, false); // false = don't update URL (already set)
+                console.log('Selected FX from URL:', fxParam);
             }
         }
         
