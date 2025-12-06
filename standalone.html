@@ -762,8 +762,9 @@
         let lastSuccessfulMaskData = null; // Store last successful mask position and size
         let lastKnownMaskPosition = null; // Store the last known mask position (x, y, width, height) - always keep visible
         let lastDrawnMaskPosition = null; // Store last drawn mask position to prevent jitter
-        const maskPositionThreshold = 20; // Only update mask position if it moves more than 20 pixels (very high threshold to prevent flickering)
-        const maskSmoothingFactor = 0.98; // Use 98% old position, 2% new (extremely smooth, prevents flickering)
+        const maskPositionThreshold = 50; // Only update mask position if it moves more than 50 pixels (very high threshold to prevent flickering)
+        const maskSmoothingFactor = 0.99; // Use 99% old position, 1% new (extremely smooth, prevents flickering)
+        let lockedMaskPosition = null; // Completely locked position - only update on very large movements
         let cachedMaskPosition = null; // Cache the calculated mask position to avoid recalculating every frame
         let lastDetectionHash = null; // Hash of detection to detect when it actually changes
         
@@ -1167,35 +1168,37 @@
                     width = Math.round(width);
                     height = Math.round(height);
                     
-                    // Smooth position changes to prevent flickering
-                    // Only update position if it changed significantly
-                    if (lastDrawnMaskPosition) {
-                        const dx = Math.abs(x - lastDrawnMaskPosition.x);
-                        const dy = Math.abs(y - lastDrawnMaskPosition.y);
-                        const dw = Math.abs(width - lastDrawnMaskPosition.width);
-                        const dh = Math.abs(height - lastDrawnMaskPosition.height);
+                    // Completely lock position to prevent ANY flickering
+                    // Only update if position changed by a very large amount
+                    if (lockedMaskPosition) {
+                        const dx = Math.abs(x - lockedMaskPosition.x);
+                        const dy = Math.abs(y - lockedMaskPosition.y);
+                        const dw = Math.abs(width - lockedMaskPosition.width);
+                        const dh = Math.abs(height - lockedMaskPosition.height);
                         
-                        // If position changed significantly, update very smoothly
+                        // Only update if position changed by a VERY large amount (50+ pixels)
                         if (dx > maskPositionThreshold || dy > maskPositionThreshold || 
                             dw > maskPositionThreshold || dh > maskPositionThreshold) {
-                            // Very smooth interpolation (95% old, 5% new) to prevent sudden jumps and flickering
+                            // Very smooth interpolation (99% old, 1% new) to prevent sudden jumps
                             const newFactor = 1 - maskSmoothingFactor;
-                            x = Math.round(lastDrawnMaskPosition.x * maskSmoothingFactor + x * newFactor);
-                            y = Math.round(lastDrawnMaskPosition.y * maskSmoothingFactor + y * newFactor);
-                            width = Math.round(lastDrawnMaskPosition.width * maskSmoothingFactor + width * newFactor);
-                            height = Math.round(lastDrawnMaskPosition.height * maskSmoothingFactor + height * newFactor);
-                            // Update stored position with smoothed values
+                            x = Math.round(lockedMaskPosition.x * maskSmoothingFactor + x * newFactor);
+                            y = Math.round(lockedMaskPosition.y * maskSmoothingFactor + y * newFactor);
+                            width = Math.round(lockedMaskPosition.width * maskSmoothingFactor + width * newFactor);
+                            height = Math.round(lockedMaskPosition.height * maskSmoothingFactor + height * newFactor);
+                            // Update locked position with smoothed values
+                            lockedMaskPosition = { x, y, width, height };
                             lastDrawnMaskPosition = { x, y, width, height };
                         } else {
-                            // Use last position if change is small (prevents jitter)
-                            x = lastDrawnMaskPosition.x;
-                            y = lastDrawnMaskPosition.y;
-                            width = lastDrawnMaskPosition.width;
-                            height = lastDrawnMaskPosition.height;
-                            // Don't update stored position - keep using the same one to prevent jitter
+                            // ALWAYS use locked position - never change it for small movements
+                            x = lockedMaskPosition.x;
+                            y = lockedMaskPosition.y;
+                            width = lockedMaskPosition.width;
+                            height = lockedMaskPosition.height;
+                            // Don't update anything - keep using exact same position
                         }
                     } else {
-                        // First time drawing - store position
+                        // First time drawing - lock position immediately
+                        lockedMaskPosition = { x, y, width, height };
                         lastDrawnMaskPosition = { x, y, width, height };
                     }
                     
