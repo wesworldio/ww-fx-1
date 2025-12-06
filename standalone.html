@@ -411,8 +411,8 @@
     </div>
     
     <!-- Face-api.js for face detection (browser-optimized) -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-api@0.22.2/dist/face-api.min.js" onload="window.faceApiLoaded = true;"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.7.4/dist/tf.min.js"></script>
+    <script src="https://unpkg.com/face-api.js@0.22.2/dist/face-api.min.js"></script>
     
     <script>
         // State
@@ -489,7 +489,7 @@
                 updateStatus('Loading face detection models...', 'connected');
                 
                 // Load face-api.js models
-                const modelPath = 'https://cdn.jsdelivr.net/npm/@tensorflow-models/face-api@0.22.2/weights';
+                const modelPath = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
                 await faceapi.nets.tinyFaceDetector.loadFromUri(modelPath);
                 
                 faceApiModelsLoaded = true;
