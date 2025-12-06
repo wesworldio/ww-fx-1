@@ -1788,6 +1788,9 @@
             await loadCameras();
             loadFilters();
             
+            // Load FX from URL parameters (playlist and current FX)
+            loadFXFromURL();
+            
             // Show UI initially
             controlsVisible = true;
             controls.classList.add('visible');
