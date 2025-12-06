@@ -810,19 +810,34 @@
                             // Always use lastValidDetections for rendering (prevents flickering)
                             // This ensures mask stays visible even if detection fails temporarily
                             if (lastValidDetections && Array.isArray(lastValidDetections) && lastValidDetections.length > 0) {
+                                // Log the structure of the first detection for debugging
+                                if (lastValidDetections[0]) {
+                                    console.log('First detection structure:', {
+                                        hasBox: !!lastValidDetections[0].box,
+                                        boxType: typeof lastValidDetections[0].box,
+                                        boxKeys: lastValidDetections[0].box ? Object.keys(lastValidDetections[0].box) : null,
+                                        boxValue: lastValidDetections[0].box,
+                                        hasLandmarks: !!lastValidDetections[0].landmarks
+                                    });
+                                }
+                                
                                 // Ensure all detections have valid structure before passing
-                                const safeDetections = lastValidDetections.filter(d => 
-                                    d && 
-                                    typeof d === 'object' && 
-                                    d.box && 
-                                    typeof d.box === 'object' &&
-                                    typeof d.box.x === 'number'
-                                );
+                                // face-api.js returns detections with box property containing x, y, width, height
+                                const safeDetections = lastValidDetections.filter(d => {
+                                    if (!d || typeof d !== 'object') return false;
+                                    if (!d.box || typeof d.box !== 'object') return false;
+                                    // Check all required box properties
+                                    return typeof d.box.x === 'number' && 
+                                           typeof d.box.y === 'number' &&
+                                           typeof d.box.width === 'number' &&
+                                           typeof d.box.height === 'number';
+                                });
+                                
                                 if (safeDetections.length > 0) {
                                     console.log('Passing', safeDetections.length, 'safe detections to applyFilterWithFaceApi');
                                     applyFilterWithFaceApi(ctx, safeDetections);
                                 } else {
-                                    console.log('No safe detections to pass');
+                                    console.log('No safe detections to pass - filtered out', lastValidDetections.length, 'detections');
                                 }
                             }
                         }
