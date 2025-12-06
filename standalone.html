@@ -412,7 +412,7 @@
     
     <!-- Face-api.js for face detection (browser-optimized) -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-api@0.22.2/dist/face-api.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-api@0.22.2/dist/face-api.min.js" onload="window.faceApiLoaded = true;"></script>
     
     <script>
         // State
@@ -1476,10 +1476,43 @@
             }
         });
         
+        // Wait for face-api.js to load
+        function waitForFaceApi() {
+            return new Promise((resolve, reject) => {
+                if (typeof faceapi !== 'undefined') {
+                    resolve();
+                    return;
+                }
+                
+                // Check every 100ms for up to 10 seconds
+                let attempts = 0;
+                const maxAttempts = 100;
+                const checkInterval = setInterval(() => {
+                    attempts++;
+                    if (typeof faceapi !== 'undefined') {
+                        clearInterval(checkInterval);
+                        resolve();
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(checkInterval);
+                        reject(new Error('face-api.js failed to load after 10 seconds'));
+                    }
+                }, 100);
+            });
+        }
+        
         // Initialize
         async function init() {
             // Initialize canvas first
             initCanvas();
+            
+            // Wait for face-api.js to load
+            try {
+                await waitForFaceApi();
+                console.log('face-api.js loaded successfully');
+            } catch (error) {
+                console.error('Failed to load face-api.js:', error);
+                updateStatus('Face detection library failed to load', 'error');
+            }
             
             await initFaceDetection();
             await loadThemes();
@@ -1502,7 +1535,13 @@
             }, 3000);
         }
         
-        init();
+        // Wait for DOM to be ready, then initialize
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            // DOM is already ready, but wait a bit for scripts to load
+            setTimeout(init, 100);
+        }
     </script>
 </body>
 </html>
