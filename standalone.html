@@ -478,11 +478,19 @@
         // Initialize face-api.js for face detection
         async function initFaceDetection() {
             try {
+                // Check if face-api.js is loaded
+                if (typeof faceapi === 'undefined') {
+                    console.error('face-api.js not loaded');
+                    updateStatus('Face detection library not loaded', 'error');
+                    return false;
+                }
+                
                 console.log('Loading face-api.js models...');
                 updateStatus('Loading face detection models...', 'connected');
                 
                 // Load face-api.js models
-                await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@tensorflow-models/face-api@0.22.2/weights');
+                const modelPath = 'https://cdn.jsdelivr.net/npm/@tensorflow-models/face-api@0.22.2/weights';
+                await faceapi.nets.tinyFaceDetector.loadFromUri(modelPath);
                 
                 faceApiModelsLoaded = true;
                 faceDetection = true; // Mark as available
@@ -493,7 +501,7 @@
                 return true;
             } catch (error) {
                 console.error('Error loading face detection models:', error);
-                updateStatus('Face detection unavailable', 'error');
+                updateStatus('Face detection unavailable: ' + error.message, 'error');
                 faceDetection = null;
                 faceApiModelsLoaded = false;
                 return false;
@@ -533,6 +541,9 @@
                                     const detections = await faceapi.detectAllFaces(videoInput, new faceapi.TinyFaceDetectorOptions());
                                     cachedDetections = detections || [];
                                     lastFaceDetectionTime = now;
+                                    if (cachedDetections.length > 0) {
+                                        console.log(`Detected ${cachedDetections.length} face(s)`);
+                                    }
                                 } catch (err) {
                                     console.warn('Face detection error:', err);
                                     cachedDetections = [];
