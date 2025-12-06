@@ -952,13 +952,26 @@
                         return;
                     }
                     
-                    let x = box.x;
-                    let y = box.y;
-                    let width = box.width;
-                    let height = box.height;
+                    // Create a hash of the detection to detect when it actually changes
+                    const detectionHash = `${Math.round(box.x)}_${Math.round(box.y)}_${Math.round(box.width)}_${Math.round(box.height)}`;
                     
-                    // Use landmarks if available for better positioning
-                    try {
+                    // Check if we can reuse cached position
+                    let x, y, width, height;
+                    if (cachedMaskPosition && lastDetectionHash === detectionHash) {
+                        // Reuse cached position - detection hasn't changed
+                        x = cachedMaskPosition.x;
+                        y = cachedMaskPosition.y;
+                        width = cachedMaskPosition.width;
+                        height = cachedMaskPosition.height;
+                    } else {
+                        // Recalculate position from detection
+                        x = box.x;
+                        y = box.y;
+                        width = box.width;
+                        height = box.height;
+                    
+                        // Use landmarks if available for better positioning
+                        try {
                         if (detection.landmarks) {
                             // face-api.js landmarks: positions array with {x, y} objects
                             // Left eye landmarks: 36-41, Right eye landmarks: 42-47
@@ -1070,7 +1083,7 @@
                         // Cache the calculated position
                         cachedMaskPosition = { x, y, width, height };
                         lastDetectionHash = detectionHash;
-                    }
+                    } // End of else block (recalculation)
                     
                     // Ensure we don't go out of bounds
                     const canvasWidth = canvasOutput.width;
