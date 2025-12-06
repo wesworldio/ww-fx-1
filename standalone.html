@@ -435,6 +435,10 @@
         let frameCount = 0;
         let faceMaskImages = {}; // Cache for face mask images
         
+        // Initialize playlist storage
+        window.fxPlaylist = null;
+        window.fxPlaylistIndex = 0;
+        
         // Elements
         const videoInput = document.getElementById('videoInput');
         const canvasOutput = document.getElementById('canvasOutput');
@@ -813,7 +817,13 @@
             
             const filterFunc = filterMap[currentFilter];
             if (filterFunc) {
-                filterFunc();
+                try {
+                    filterFunc();
+                } catch (error) {
+                    console.error('Error applying filter:', currentFilter, error);
+                }
+            } else {
+                console.warn('Filter not implemented:', currentFilter);
             }
             
             ctx.putImageData(imageData, 0, 0);
