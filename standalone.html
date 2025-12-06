@@ -1082,13 +1082,12 @@
             ctx.drawImage(img, Math.round(x), Math.round(y), Math.round(width), Math.round(height));
         }
         
-        // Apply face mask (async version for initial loading - not used in main render loop)
+        // Apply face mask (async version - deprecated, use applyFaceMaskSync instead)
         async function applyFaceMask(ctx, x, y, width, height) {
             // This function is kept for backward compatibility but should not be used in the render loop
             // Use applyFaceMaskSync instead for synchronous drawing
-            console.warn('applyFaceMask (async) should not be called in render loop - use applyFaceMaskSync');
-            // Fallback to sync version
-            applyFaceMaskSync(ctx, x, y, width, height);
+            // Immediately call sync version to prevent flickering
+            return applyFaceMaskSync(ctx, x, y, width, height);
         }
         
         // Apply dropout logo
