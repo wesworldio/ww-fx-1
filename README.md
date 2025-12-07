@@ -342,13 +342,13 @@ make run-mirror
 
 **Windows (direct Python):**
 ```bash
-python face_filters.py bulge
-python face_filters.py stretch
-python face_filters.py swirl
-python face_filters.py fisheye
-python face_filters.py pinch
-python face_filters.py wave
-python face_filters.py mirror
+python src/face_filters.py bulge
+python src/face_filters.py stretch
+python src/face_filters.py swirl
+python src/face_filters.py fisheye
+python src/face_filters.py pinch
+python src/face_filters.py wave
+python src/face_filters.py mirror
 ```
 
 ### Custom Resolution/FPS
@@ -360,12 +360,12 @@ WIDTH=1920 HEIGHT=1080 FPS=60 make run-bulge
 
 **Windows (Command Prompt):**
 ```cmd
-set WIDTH=1920 && set HEIGHT=1080 && set FPS=60 && python face_filters.py bulge
+set WIDTH=1920 && set HEIGHT=1080 && set FPS=60 && python src/face_filters.py bulge
 ```
 
 **Windows (PowerShell):**
 ```powershell
-$env:WIDTH=1920; $env:HEIGHT=1080; $env:FPS=60; python face_filters.py bulge
+$env:WIDTH=1920; $env:HEIGHT=1080; $env:FPS=60; python src/face_filters.py bulge
 ```
 
 ### Interactive Mode (Recommended for Testing)
@@ -379,7 +379,7 @@ make interactive
 
 **Windows:**
 ```bash
-python interactive_filters.py
+python src/interactive_filters.py
 ```
 
 This opens a Python window where you can:
@@ -407,9 +407,9 @@ make preview-swirl
 
 **Windows:**
 ```bash
-python face_filters.py bulge --preview-only
-python face_filters.py stretch --preview-only
-python face_filters.py swirl --preview-only
+python src/face_filters.py bulge --preview-only
+python src/face_filters.py stretch --preview-only
+python src/face_filters.py swirl --preview-only
 # ... etc for any filter
 ```
 
@@ -419,12 +419,12 @@ This opens a Python window showing the filtered video feed - perfect for testing
 
 **macOS/Linux:**
 ```bash
-python3 face_filters.py <filter-type> [options]
+python3 src/face_filters.py <filter-type> [options]
 ```
 
 **Windows:**
 ```bash
-python face_filters.py <filter-type> [options]
+python src/face_filters.py <filter-type> [options]
 ```
 
 Options:
@@ -437,7 +437,7 @@ Options:
 
 Example:
 ```bash
-python face_filters.py swirl --width 1920 --height 1080 --fps 60 --preview-only
+python src/face_filters.py swirl --width 1920 --height 1080 --fps 60 --preview-only
 ```
 
 **Note:** Use `python3` on macOS/Linux if `python` points to Python 2, or `python` on Windows. Adjust based on your system's Python installation.
@@ -449,24 +449,24 @@ A fully client-side version that runs entirely in the browser without any backen
 ### Using the Standalone Version
 
 **Option 1: WASM Edition (Recommended - High Performance)**
-1. Open `standalone-wasm.html` in your web browser
+1. Open `index.html` in your web browser (or visit the GitHub Pages URL)
 2. Uses WebAssembly for maximum performance
 3. Works on desktop, mobile, and all modern browsers
 
 **Option 2: JavaScript Edition (Compatible)**
-1. Open `standalone.html` in your web browser
+1. Open `static/standalone.html` in your web browser
 2. Uses JavaScript filters (compatible with older browsers)
 
 **Hosting on GitHub Pages:**
 - Push the repo to GitHub
 - Enable GitHub Pages in repository settings
 - Set source to `main` branch and root directory
-- Access at `https://yourusername.github.io/repo-name/standalone-wasm.html`
+- Access at `https://yourusername.github.io/repo-name/` (index.html is the default)
 
 ### Features
 
 - ✅ **No Backend Required** - Runs entirely in the browser
-- ✅ **WASM Processing** - High-performance WebAssembly filters (standalone-wasm.html)
+- ✅ **WASM Processing** - High-performance WebAssembly filters (index.html)
 - ✅ **Client-Side Face Detection** - Uses MediaPipe Face Detection (WASM) or face-api.js
 - ✅ **All UI Features** - Pinned FX, search, keyboard shortcuts
 - ✅ **Face Mask Support** - Loads masks from `assets/dropout/face_mask/`
@@ -499,12 +499,12 @@ make web
 
 **Windows:**
 ```bash
-python web_server.py
+python src/web_server.py
 ```
 
 Or directly with uvicorn:
 ```bash
-uvicorn web_server:app --host 0.0.0.0 --port 8000
+cd src && uvicorn web_server:app --host 0.0.0.0 --port 8000
 ```
 
 ### Using the Web Interface
@@ -521,7 +521,7 @@ uvicorn web_server:app --host 0.0.0.0 --port 8000
 
 The web interface is designed to be minimal - perfect for OBS Browser Source:
 
-1. Start the web server: `make web` or `python web_server.py`
+1. Start the web server: `make web` or `python src/web_server.py`
 2. In OBS, add a **Browser Source**
 3. Set the URL to: `http://localhost:9000` (or your server IP if remote)
 4. Set width: `1920` and height: `1080` (or your preferred resolution)
@@ -550,7 +550,7 @@ The web interface is designed to be minimal - perfect for OBS Browser Source:
    - **Windows**: Windows Settings → Privacy → Camera (allow desktop apps)
 4. Start a filter:
    - **macOS/Linux**: `make run-<filter-name>` (e.g., `make run-bulge`)
-   - **Windows**: `python face_filters.py <filter-name>` (e.g., `python face_filters.py bulge`)
+   - **Windows**: `python src/face_filters.py <filter-name>` (e.g., `python src/face_filters.py bulge`)
 5. The filter will automatically detect and use the OBS Virtual Camera backend
 6. In OBS, add a new **Video Capture Device** source
 7. Select the virtual camera from the device dropdown
@@ -562,7 +562,7 @@ If virtual camera is not available, the filter runs in preview-only mode:
 
 1. Start a filter:
    - **macOS/Linux**: `make run-<filter-name>` or `make preview-<filter-name>`
-   - **Windows**: `python face_filters.py <filter-name> --preview-only`
+   - **Windows**: `python src/face_filters.py <filter-name> --preview-only`
 2. A preview window will appear showing the filtered video
 3. In OBS, add a new **Window Capture** source
 4. Select the "WesWorld FX - Preview" window
@@ -591,19 +591,19 @@ To use any filter:
 
 **macOS/Linux:**
 ```bash
-python3 face_filters.py <filter-name> --preview-only
+python3 src/face_filters.py <filter-name> --preview-only
 ```
 
 **Windows:**
 ```bash
-python face_filters.py <filter-name> --preview-only
+python src/face_filters.py <filter-name> --preview-only
 ```
 
 For example:
 ```bash
-python face_filters.py sam_reich --preview-only
-python face_filters.py cyberpunk --preview-only
-python face_filters.py cartoon --preview-only
+python src/face_filters.py sam_reich --preview-only
+python src/face_filters.py cyberpunk --preview-only
+python src/face_filters.py cartoon --preview-only
 ```
 
 ## Testing
@@ -679,7 +679,7 @@ make validate-filters
 **Windows:**
 ```bash
 # Terminal 1: Start server
-python web_server.py
+python src/web_server.py
 
 # Terminal 2: Validate filters
 python scripts/validate_filters.py
@@ -714,10 +714,10 @@ For detailed testing documentation, see [docs/testing.md](docs/testing.md).
 ### Performance Issues
 - Reduce resolution:
   - **macOS/Linux**: `WIDTH=640 HEIGHT=480 make run-bulge`
-  - **Windows**: `python face_filters.py bulge --width 640 --height 480`
+  - **Windows**: `python src/face_filters.py bulge --width 640 --height 480`
 - Lower FPS:
   - **macOS/Linux**: `FPS=15 make run-bulge`
-  - **Windows**: `python face_filters.py bulge --fps 15`
+  - **Windows**: `python src/face_filters.py bulge --fps 15`
 
 ## Stopping Filters
 

@@ -51,67 +51,67 @@ install-test:
 	$(PYTHON) -m playwright install chromium
 
 run-bulge:
-	$(PYTHON) face_filters.py bulge --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview
+	$(PYTHON) src/face_filters.py bulge --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview
 
 run-stretch:
-	$(PYTHON) face_filters.py stretch --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview
+	$(PYTHON) src/face_filters.py stretch --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview
 
 run-swirl:
-	$(PYTHON) face_filters.py swirl --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview
+	$(PYTHON) src/face_filters.py swirl --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview
 
 run-fisheye:
-	$(PYTHON) face_filters.py fisheye --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview
+	$(PYTHON) src/face_filters.py fisheye --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview
 
 run-pinch:
-	$(PYTHON) face_filters.py pinch --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview
+	$(PYTHON) src/face_filters.py pinch --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview
 
 run-wave:
-	$(PYTHON) face_filters.py wave --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview
+	$(PYTHON) src/face_filters.py wave --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview
 
 run-mirror:
-	$(PYTHON) face_filters.py mirror --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview
+	$(PYTHON) src/face_filters.py mirror --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview
 
 preview-bulge:
-	$(PYTHON) face_filters.py bulge --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview-only
+	$(PYTHON) src/face_filters.py bulge --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview-only
 
 preview-stretch:
-	$(PYTHON) face_filters.py stretch --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview-only
+	$(PYTHON) src/face_filters.py stretch --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview-only
 
 preview-swirl:
-	$(PYTHON) face_filters.py swirl --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview-only
+	$(PYTHON) src/face_filters.py swirl --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview-only
 
 preview-fisheye:
-	$(PYTHON) face_filters.py fisheye --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview-only
+	$(PYTHON) src/face_filters.py fisheye --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview-only
 
 preview-pinch:
-	$(PYTHON) face_filters.py pinch --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview-only
+	$(PYTHON) src/face_filters.py pinch --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview-only
 
 preview-wave:
-	$(PYTHON) face_filters.py wave --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview-only
+	$(PYTHON) src/face_filters.py wave --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview-only
 
 preview-mirror:
-	$(PYTHON) face_filters.py mirror --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview-only
+	$(PYTHON) src/face_filters.py mirror --width $(WIDTH) --height $(HEIGHT) --fps $(FPS) --preview-only
 
 interactive:
-	$(PYTHON) interactive_filters.py --width $(WIDTH) --height $(HEIGHT) --fps $(FPS)
+	$(PYTHON) src/interactive_filters.py --width $(WIDTH) --height $(HEIGHT) --fps $(FPS)
 
 interactive-daemon:
 	@echo "Starting interactive filters daemon with auto-reload..."
 	@echo "To stop: make interactive-daemon-stop"
 	@echo "To check status: make interactive-daemon-status"
 	@echo "To view logs: make interactive-daemon-logs"
-	@$(PYTHON) daemon_interactive.py start --width $(WIDTH) --height $(HEIGHT) --fps $(FPS)
+	@$(PYTHON) src/daemon_interactive.py start --width $(WIDTH) --height $(HEIGHT) --fps $(FPS)
 
 interactive-daemon-stop:
 	@echo "Stopping interactive filters daemon..."
-	@$(PYTHON) daemon_interactive.py stop || echo "⚠️  Daemon not running"
+	@$(PYTHON) src/daemon_interactive.py stop || echo "⚠️  Daemon not running"
 
 interactive-daemon-status:
-	@$(PYTHON) daemon_interactive.py status
+	@$(PYTHON) src/daemon_interactive.py status
 
 interactive-daemon-restart:
 	@echo "Restarting interactive filters daemon..."
-	@$(PYTHON) daemon_interactive.py restart --width $(WIDTH) --height $(HEIGHT) --fps $(FPS)
+	@$(PYTHON) src/daemon_interactive.py restart --width $(WIDTH) --height $(HEIGHT) --fps $(FPS)
 
 interactive-daemon-logs:
 	@if [ -f /tmp/ww_fx_interactive.log ]; then \
@@ -141,7 +141,7 @@ web:
 	@echo "Open http://localhost:9000 in your browser"
 	@echo "Server will auto-reload on file changes"
 	@echo "To stop: make web-stop"
-	@$(PYTHON) -m uvicorn web_server:app --host 0.0.0.0 --port 9000 --reload
+	@cd src && $(PYTHON) -m uvicorn web_server:app --host 0.0.0.0 --port 9000 --reload
 
 web-daemon:
 	@echo "Checking for existing server on port 9000..."
@@ -152,7 +152,7 @@ web-daemon:
 	@echo "Server will auto-reload on file changes"
 	@echo "Logs: tail -f /tmp/web_server.log"
 	@echo "To stop: make web-stop"
-	@nohup $(PYTHON) -m uvicorn web_server:app --host 0.0.0.0 --port 9000 --reload > /tmp/web_server.log 2>&1 & \
+	@cd src && nohup $(PYTHON) -m uvicorn web_server:app --host 0.0.0.0 --port 9000 --reload > /tmp/web_server.log 2>&1 & \
 	echo $$! > /tmp/web_server.pid && \
 	echo "✅ Server started (PID: $$(cat /tmp/web_server.pid))"
 
@@ -229,7 +229,7 @@ test:
 
 comparison:
 	@echo "Generating comparison images for all filters..."
-	@$(PYTHON) generate_comparison.py --all
+	@$(PYTHON) src/generate_comparison.py --all
 	@echo "Comparison images generated in docs/ directory"
 
 clean:

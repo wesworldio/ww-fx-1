@@ -67,17 +67,17 @@ def get_filters_by_category():
     }
 
 # Serve static files if static directory exists
-static_dir = os.path.join(os.path.dirname(__file__), 'static')
+static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static')
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # Serve themes directory
-themes_dir = os.path.join(os.path.dirname(__file__), 'themes')
+themes_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'themes')
 if os.path.exists(themes_dir):
     app.mount("/themes", StaticFiles(directory=themes_dir), name="themes")
 
 # Serve assets directory
-assets_dir = os.path.join(os.path.dirname(__file__), 'assets')
+assets_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'assets')
 if os.path.exists(assets_dir):
     app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
