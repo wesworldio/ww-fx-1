@@ -1352,13 +1352,13 @@
             }
         }
         
-        /* Corner tap areas for mobile - invisible but clickable */
+        /* Corner tap areas - invisible but clickable for easy menu access */
         .corner-tap-area {
             position: fixed;
             z-index: 9999;
             background: transparent;
             pointer-events: auto;
-            display: none; /* Hidden by default, shown only on mobile/small screens */
+            display: block; /* Shown on all screen sizes */
         }
         
         .corner-tap-area.top-left {
@@ -1597,7 +1597,7 @@
     
     <div id="status" class="hidden">Initializing...</div>
     
-    <!-- Corner tap areas for mobile - invisible but clickable -->
+    <!-- Corner tap areas - invisible but clickable for easy menu access -->
     <div class="corner-tap-area top-left" id="cornerTopLeft" aria-label="Tap to open menu"></div>
     <div class="corner-tap-area top-right" id="cornerTopRight" aria-label="Tap to open menu"></div>
     <div class="corner-tap-area bottom-left" id="cornerBottomLeft" aria-label="Tap to open menu"></div>
