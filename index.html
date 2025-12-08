@@ -417,7 +417,8 @@
             border-bottom: 1px solid var(--border-color, #333);
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
+            position: relative;
         }
         
         .fx-search-header .fx-search-input {
@@ -427,25 +428,50 @@
             border: 1px solid var(--border-color, #333);
             border-radius: 8px;
             font-size: 16px;
-            color: var(--text-color, white);
+            color: #ffffff !important;
+            min-width: 0;
+        }
+        
+        .fx-search-header .fx-search-input::placeholder {
+            color: #888888 !important;
+            opacity: 1;
         }
         
         .fx-search-header .fx-search-input:focus {
             outline: none;
             border-color: var(--accent-color, #5250ef);
             box-shadow: 0 0 0 3px rgba(82, 80, 239, 0.2);
+            color: #ffffff !important;
+            background: var(--surface-hover-color, #2a2a2a);
+        }
+        
+        .fx-search-header .fx-search-input:focus::placeholder {
+            color: #666666 !important;
+        }
+        
+        .fx-search-header .fx-search-input:-webkit-autofill,
+        .fx-search-header .fx-search-input:-webkit-autofill:hover,
+        .fx-search-header .fx-search-input:-webkit-autofill:focus {
+            -webkit-text-fill-color: #ffffff !important;
+            -webkit-box-shadow: 0 0 0px 1000px var(--surface-hover-color, #2a2a2a) inset !important;
         }
         
         .fx-search-close {
-            padding: 8px 12px;
+            padding: 6px 8px;
             background: transparent;
             border: 1px solid var(--border-color, #333);
             border-radius: 6px;
             color: var(--text-color, white);
             cursor: pointer;
-            font-size: 18px;
+            font-size: 14px;
             line-height: 1;
             transition: all 0.2s;
+            min-width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
         }
         
         .fx-search-close:hover {
@@ -611,10 +637,10 @@
 <body>
     <div id="loadingIndicator">
         <div class="spinner"></div>
-        <div>Loading WASM module...</div>
+        <div>Loading...</div>
     </div>
     
-    <div id="controls" class="visible">
+    <div id="controls" class="hidden">
         <!-- Settings Section -->
         <div class="settings-section">
             <div class="section-title" id="settingsToggle">Settings</div>
@@ -635,13 +661,6 @@
                 </div>
                 <button id="startButton">Start Camera</button>
                 <button id="stopButton" style="display: none;">Stop Camera</button>
-                <label style="margin-top: 10px; display: block;">
-                    Test Image:
-                    <input type="file" id="testImageInput" accept="image/*" style="display: none;">
-                    <button type="button" id="loadTestImageButton" style="width: 100%; margin-top: 5px;">Load Test Image</button>
-                    <button type="button" id="loadRefImageButton" style="width: 100%; margin-top: 5px;">Load ref-1.png</button>
-                    <button type="button" id="clearTestImageButton" style="width: 100%; margin-top: 5px; display: none;">Clear Test Image</button>
-                </label>
             </div>
         </div>
         
@@ -770,8 +789,6 @@
         // Legacy dropdown elements (may not exist if using modal search)
         const fxDropdownMenu = document.getElementById('fxDropdownMenu');
         const fxDropdownButton = document.getElementById('fxDropdownButton');
-        const loadTestImageButton = document.getElementById('loadTestImageButton');
-        const loadRefImageButton = document.getElementById('loadRefImageButton');
         const clearTestImageButton = document.getElementById('clearTestImageButton');
         
         // Check WASM support
@@ -1652,6 +1669,13 @@
         function selectFilter(filterValue, skipURLUpdate = false) {
             currentFilter = filterValue || '';
             
+            // Save to localStorage (works even with file:// protocol)
+            try {
+                localStorage.setItem('wesworld-fx-last', currentFilter);
+            } catch (error) {
+                console.error('Error saving last filter to localStorage:', error);
+            }
+            
             if (currentFilter === '') {
                 fxSelectedText.textContent = 'None (Original)';
                 fxCurrentPin.style.display = 'none';
@@ -1762,9 +1786,15 @@
             }
             
             function matchesFilter(filterValue, displayText) {
+                // Case-insensitive search that matches anywhere in the string
                 const filterName = formatFilterName(filterValue).toLowerCase();
                 const text = displayText.toLowerCase();
-                return text.includes(searchLower) || filterName.includes(searchLower) || filterValue.toLowerCase().includes(searchLower);
+                const filterValueLower = filterValue.toLowerCase();
+                
+                // Check if search query appears anywhere in any of these strings
+                return text.includes(searchLower) || 
+                       filterName.includes(searchLower) || 
+                       filterValueLower.includes(searchLower);
             }
             
             if (pinnedContainer) {
@@ -1851,66 +1881,6 @@
                 reader.onerror = reject;
                 reader.readAsDataURL(imageFile);
             });
-        }
-        
-        // Load reference image from file path
-        async function loadRefImage() {
-            // For file:// protocol, relative paths work better than absolute paths
-            const imagePath = 'tests/ref-1.png';
-            
-            try {
-                const img = new Image();
-                await new Promise((resolve, reject) => {
-                    img.onload = () => {
-                        testImage = img;
-                        clearTestImageButton.style.display = 'block';
-                        console.log('Reference image loaded:', img.width, 'x', img.height);
-                        if (localStream) {
-                            stopCamera();
-                        }
-                        processVideoFrame();
-                        resolve();
-                    };
-                    img.onerror = (err) => {
-                        // If relative path fails, prompt user to use file input
-                        console.warn('Could not load reference image from relative path. Please use "Load Test Image" button.');
-                        console.log('Tried to load:', imagePath);
-                        console.log('Current location:', window.location.href);
-                        
-                        // Show helpful message
-                        const useFileInput = confirm(
-                            'Could not load reference image automatically.\n\n' +
-                            'This is normal when using file:// protocol.\n\n' +
-                            'Click OK to open file picker, then select:\n' +
-                            'tests/ref-1.png\n\n' +
-                            'Or click Cancel to try again later.'
-                        );
-                        
-                        if (useFileInput) {
-                            // Trigger file input
-                            if (testImageInput) {
-                                testImageInput.click();
-                            }
-                        }
-                        reject(new Error('Could not load image from path'));
-                    };
-                    // Try relative path (works for file:// protocol)
-                    img.src = imagePath;
-                });
-            } catch (error) {
-                console.error('Error loading reference image:', error);
-                // Fallback: prompt user to use file input
-                if (testImageInput) {
-                    const useFileInput = confirm(
-                        'Could not load reference image automatically.\n\n' +
-                        'Please click OK to open file picker and select:\n' +
-                        'tests/ref-1.png'
-                    );
-                    if (useFileInput) {
-                        testImageInput.click();
-                    }
-                }
-            }
         }
         
         // Clear test image
@@ -3974,12 +3944,6 @@
             }
             
             // Test image handlers
-            if (loadTestImageButton) {
-                loadTestImageButton.addEventListener('click', () => {
-                    testImageInput.click();
-                });
-            }
-            
             if (testImageInput) {
                 testImageInput.addEventListener('change', (e) => {
                     const file = e.target.files[0];
@@ -3988,14 +3952,6 @@
                             console.error('Error loading test image:', err);
                         });
                     }
-                });
-            }
-            
-            if (loadRefImageButton) {
-                loadRefImageButton.addEventListener('click', () => {
-                    loadRefImage().catch(err => {
-                        console.error('Error loading reference image:', err);
-                    });
                 });
             }
             
@@ -4156,7 +4112,7 @@
         // Initialize everything
         async function init() {
             try {
-                updateStatus('Loading WASM module...', 'loading');
+                updateStatus('Loading...', 'loading');
                 
                 // Initialize WASM
                 await initWasm();
@@ -4177,12 +4133,24 @@
                 loadFilters();
                 setupEventListeners();
                 
-                // Load FX from URL if present (after filters are loaded)
+                // Load FX from URL if present, otherwise load from localStorage (after filters are loaded)
                 setTimeout(() => {
                     const urlParams = new URLSearchParams(window.location.search);
                     const fxParam = urlParams.get('fx');
+                    
                     if (fxParam && allFilters.includes(fxParam)) {
+                        // URL parameter takes priority
                         selectFilter(fxParam, false);
+                    } else {
+                        // Try to load from localStorage (works with file:// protocol)
+                        try {
+                            const savedFilter = localStorage.getItem('wesworld-fx-last');
+                            if (savedFilter && allFilters.includes(savedFilter)) {
+                                selectFilter(savedFilter, false);
+                            }
+                        } catch (error) {
+                            console.error('Error loading last filter from localStorage:', error);
+                        }
                     }
                 }, 100);
                 
@@ -4273,10 +4241,43 @@
             }
         }
         
-        // Start initialization when DOM is ready
+        // Load theme immediately when DOM is ready (before showing controls)
+        function loadThemeEarly() {
+            if (themeSelect && THEMES) {
+                // Populate theme dropdown
+                themeSelect.innerHTML = '';
+                Object.keys(THEMES).forEach(themeKey => {
+                    const option = document.createElement('option');
+                    option.value = themeKey;
+                    option.textContent = THEMES[themeKey].name;
+                    themeSelect.appendChild(option);
+                });
+                
+                // Load saved theme or use default (wesworld)
+                const savedTheme = localStorage.getItem('wesworld-fx-theme') || 'wesworld';
+                if (THEMES[savedTheme]) {
+                    themeSelect.value = savedTheme;
+                    applyTheme(THEMES[savedTheme]);
+                } else {
+                    applyTheme(THEMES.wesworld);
+                }
+                
+                // Show controls after theme is loaded
+                if (controls) {
+                    controls.classList.remove('hidden');
+                    controls.classList.add('visible');
+                }
+            }
+        }
+        
+        // Load theme as soon as DOM elements are available
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
+            document.addEventListener('DOMContentLoaded', () => {
+                loadThemeEarly();
+                init();
+            });
         } else {
+            loadThemeEarly();
             init();
         }
     </script>
