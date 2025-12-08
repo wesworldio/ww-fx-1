@@ -274,7 +274,30 @@
             justify-content: space-between;
             align-items: flex-start;
             margin-bottom: 6px;
-            padding: 4px 0;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .help-command[data-action] {
+            cursor: pointer;
+        }
+        
+        .help-command[data-action]:hover {
+            background-color: var(--surface-hover-color, rgba(255, 255, 255, 0.05));
+        }
+        
+        .help-command[data-action]:active {
+            background-color: var(--surface-hover-color, rgba(255, 255, 255, 0.1));
+        }
+        
+        .help-command.disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+        
+        .help-command.disabled:hover {
+            background-color: transparent;
         }
         
         .help-command-desc {
@@ -1487,11 +1510,11 @@
             <div class="help-section-content">
                 <div class="help-category">
                     <div class="help-category-title">Navigation</div>
-                    <div class="help-command">
+                    <div class="help-command" data-action="toggle-ui">
                         <span class="help-command-desc">Toggle UI visibility</span>
                         <span class="help-command-key">H</span>
                     </div>
-                    <div class="help-command">
+                    <div class="help-command" data-action="open-search">
                         <span class="help-command-desc">Open FX search</span>
                         <span class="help-command-key"><kbd>F</kbd></span>
                     </div>
@@ -1499,19 +1522,19 @@
                 
                 <div class="help-category">
                     <div class="help-category-title">Filter Controls</div>
-                    <div class="help-command">
+                    <div class="help-command" data-action="prev-filter">
                         <span class="help-command-desc">Previous filter</span>
                         <span class="help-command-key">↑ / ←</span>
                     </div>
-                    <div class="help-command">
+                    <div class="help-command" data-action="next-filter">
                         <span class="help-command-desc">Next filter</span>
                         <span class="help-command-key">↓ / →</span>
                     </div>
-                    <div class="help-command">
+                    <div class="help-command" data-action="random-cycle">
                         <span class="help-command-desc">Random cycle</span>
                         <span class="help-command-key">Space</span>
                     </div>
-                    <div class="help-command">
+                    <div class="help-command" data-action="clear-filter">
                         <span class="help-command-desc">Clear filter</span>
                         <span class="help-command-key">C / Esc</span>
                     </div>
@@ -1519,11 +1542,11 @@
                 
                 <div class="help-category">
                     <div class="help-category-title">Face Mask Controls</div>
-                    <div class="help-command">
+                    <div class="help-command" data-action="increase-mask" id="helpIncreaseMask">
                         <span class="help-command-desc">Increase mask size</span>
                         <span class="help-command-key">+ / =</span>
                     </div>
-                    <div class="help-command">
+                    <div class="help-command" data-action="decrease-mask" id="helpDecreaseMask">
                         <span class="help-command-desc">Decrease mask size</span>
                         <span class="help-command-key">- / _</span>
                     </div>
@@ -3344,6 +3367,11 @@
             // Update URL unless we're in the middle of a roulette
             if (!skipURLUpdate) {
                 updateURLWithFX(currentFilter);
+            }
+            
+            // Update face mask controls state
+            if (typeof updateFaceMaskControlsState === 'function') {
+                updateFaceMaskControlsState();
             }
         }
         
@@ -5837,6 +5865,95 @@
                     helpToggle.classList.toggle('expanded');
                 }, { passive: false });
             }
+            
+            // Make help commands clickable/tappable for mobile
+            function setupHelpCommandHandlers() {
+                const helpCommands = document.querySelectorAll('.help-command[data-action]');
+                
+                helpCommands.forEach(cmd => {
+                    const action = cmd.getAttribute('data-action');
+                    
+                    // Handle click
+                    cmd.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        handleHelpCommandAction(action);
+                    });
+                    
+                    // Handle touch for mobile
+                    cmd.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleHelpCommandAction(action);
+                    }, { passive: false });
+                });
+            }
+            
+            function handleHelpCommandAction(action) {
+                switch(action) {
+                    case 'toggle-ui':
+                        toggleUI();
+                        break;
+                    case 'open-search':
+                        openFxSearchModal();
+                        break;
+                    case 'prev-filter':
+                        cyclePrevFilter();
+                        break;
+                    case 'next-filter':
+                        cycleNextFilter();
+                        break;
+                    case 'random-cycle':
+                        startRandomCycle();
+                        break;
+                    case 'clear-filter':
+                        clearFilter();
+                        break;
+                    case 'increase-mask':
+                        if (currentFilter && currentFilter.includes('face_mask')) {
+                            adjustFaceMaskSize(0.1);
+                        }
+                        break;
+                    case 'decrease-mask':
+                        if (currentFilter && currentFilter.includes('face_mask')) {
+                            adjustFaceMaskSize(-0.1);
+                        }
+                        break;
+                }
+            }
+            
+            // Update face mask control states based on current filter
+            function updateFaceMaskControlsState() {
+                const increaseMask = document.getElementById('helpIncreaseMask');
+                const decreaseMask = document.getElementById('helpDecreaseMask');
+                const isFaceMaskActive = currentFilter && currentFilter.includes('face_mask');
+                
+                if (increaseMask) {
+                    if (isFaceMaskActive) {
+                        increaseMask.classList.remove('disabled');
+                    } else {
+                        increaseMask.classList.add('disabled');
+                    }
+                }
+                
+                if (decreaseMask) {
+                    if (isFaceMaskActive) {
+                        decreaseMask.classList.remove('disabled');
+                    } else {
+                        decreaseMask.classList.add('disabled');
+                    }
+                }
+            }
+            
+            // Setup help command handlers
+            setupHelpCommandHandlers();
+            
+            // Initial update of face mask controls state
+            // This will be called again when filters are loaded
+            setTimeout(() => {
+                if (typeof updateFaceMaskControlsState === 'function') {
+                    updateFaceMaskControlsState();
+                }
+            }, 100);
             
             // FX section toggle
             const fxToggle = document.getElementById('fxToggle');
