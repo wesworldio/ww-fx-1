@@ -1,4 +1,4 @@
-.PHONY: help install install-test run-bulge run-stretch run-swirl run-fisheye run-pinch run-wave run-mirror preview-bulge preview-stretch preview-swirl preview-fisheye preview-pinch preview-wave preview-mirror interactive interactive-daemon interactive-daemon-stop interactive-daemon-status interactive-daemon-restart interactive-daemon-logs interactive-daemon-logs-json test clean comparison web web-daemon web-stop web-logs web-status wasm-build wasm-clean wasm-watch wasm-daemon wasm-daemon-stop wasm-daemon-status wasm-daemon-logs dev dev-stop test-e2e test-install build-info
+.PHONY: help install install-test run-bulge run-stretch run-swirl run-fisheye run-pinch run-wave run-mirror preview-bulge preview-stretch preview-swirl preview-fisheye preview-pinch preview-wave preview-mirror interactive interactive-daemon interactive-daemon-stop interactive-daemon-status interactive-daemon-restart interactive-daemon-logs interactive-daemon-logs-json test clean comparison web web-daemon web-stop web-logs web-status wasm-build wasm-clean wasm-watch wasm-daemon wasm-daemon-stop wasm-daemon-status wasm-daemon-logs dev dev-stop test-e2e test-install build-info setup-hooks
 
 FILTERS = bulge stretch swirl fisheye pinch wave mirror
 WIDTH = 1280
@@ -60,6 +60,8 @@ help:
 	@echo "Utilities:"
 	@echo "  make comparison       - Generate before/after comparison images"
 	@echo "  make clean            - Remove Python cache files"
+	@echo "  make build-info       - Generate build-info.json from git"
+	@echo "  make setup-hooks      - Install git hooks to auto-update build-info.json"
 	@echo ""
 	@echo "Options:"
 	@echo "  WIDTH=1920 HEIGHT=1080 FPS=60 make run-bulge  - Custom resolution/FPS"
@@ -161,6 +163,10 @@ interactive-daemon-logs-json:
 build-info:
 	@echo "Generating build-info.json from git..."
 	@$(PYTHON) scripts/generate_build_info.py
+
+setup-hooks:
+	@echo "Setting up git hooks to auto-update build-info.json..."
+	@bash scripts/setup_git_hooks.sh
 
 web: build-info
 	@echo "Checking for existing server on port 9000..."
