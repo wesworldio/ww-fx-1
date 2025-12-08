@@ -145,7 +145,7 @@ def test_api_filters_endpoint(page: Page):
     assert len(data["filters"]) > 0, "Should return at least one filter"
     
     # Check that some expected filters are present
-    expected_filters = ["bulge", "swirl", "fisheye", "sam_reich"]
+    expected_filters = ["bulge", "swirl", "fisheye"]
     for filter_name in expected_filters:
         assert filter_name in data["filters"], f"Expected filter '{filter_name}' not found"
 

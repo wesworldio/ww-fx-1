@@ -80,7 +80,7 @@ class InteractiveFilterViewer:
         
         # Filter categories (matching web UI)
         self.filter_categories = {
-            'DROPOUT': ['sam_reich', 'sam_face_mask'],
+            'DROPOUT': [],  # Face masks are discovered dynamically
             'Distortion': [
                 'bulge', 'stretch', 'swirl', 'fisheye', 'pinch', 'wave', 'mirror',
                 'twirl', 'ripple', 'sphere', 'tunnel', 'water_ripple', 'radial_blur',
@@ -109,11 +109,6 @@ class InteractiveFilterViewer:
             for filter_type in filters:
                 # Find display name
                 display_name = filter_type.replace('_', ' ').title()
-                # Special cases
-                if filter_type == 'sam_reich':
-                    display_name = 'SAM REICH Tattoo'
-                elif filter_type == 'sam_face_mask':
-                    display_name = 'Sam Face Mask'
                 self.filter_list.append((filter_type, display_name))
         
         # Initialize current filter (None/Original is first)
@@ -125,10 +120,6 @@ class InteractiveFilterViewer:
         self.filters = {
             '0': self.filter_list[0],  # None (Original)
         }
-        # Find SAM REICH for 'S' key
-        sam_reich_idx = next((i for i, (ft, _) in enumerate(self.filter_list) if ft == 'sam_reich'), 0)
-        if sam_reich_idx < len(self.filter_list):
-            self.filters['s'] = self.filter_list[sam_reich_idx]
         # Add number keys for first few filters after None
         for i in range(1, 8):
             if i < len(self.filter_list):
@@ -590,18 +581,25 @@ class InteractiveFilterViewer:
             'pixelate', 'blur', 'sharpen', 'emboss'
         }
         
-        face_tracking_filters = {'sam_reich', 'sam_face_mask'}
-        
+        # Face mask filters are handled dynamically via apply_face_mask_from_asset
+        # Check if this is a face mask filter by checking if it contains 'face_mask'
         try:
-            if filter_type in face_tracking_filters:
-                if filter_type == 'sam_reich':
-                    face = self.filter_app.detect_face(frame)
-                    if face:
-                        return self.filter_app.apply_sam_reich_tattoo(frame.copy(), face)
-                elif filter_type == 'sam_face_mask':
+            if 'face_mask' in filter_type:
+                # Parse filter name to extract folder and mask name
+                parts = filter_type.split('_')
+                if len(parts) >= 3:
+                    folder = parts[0]
+                    mask_name = parts[-1]
+                    if folder == 'dropout':
+                        asset_dir = 'assets/dropout/face_mask'
+                    elif folder == 'assets':
+                        asset_dir = 'assets/face_mask'
+                    else:
+                        asset_dir = f'assets/{folder}/face_mask'
                     faces = self.filter_app.detect_all_faces(frame)
                     if faces:
-                        return self.filter_app.apply_sam_face_mask(frame.copy(), faces)
+                        for face in faces:
+                            frame = self.filter_app.apply_face_mask_from_asset(frame.copy(), face, mask_name, asset_dir=asset_dir)
                 return frame
             elif filter_type in animated_filters:
                 dummy_face = (0, 0, frame.shape[1], frame.shape[0])
@@ -1010,7 +1008,6 @@ class InteractiveFilterViewer:
         print("  Press U: Check/Pull updates")
         print("  Press T: Switch theme (WesWorld/Dropout/Default)")
         print("  Press /: Start search (then type to filter, Enter to select, Esc to clear)")
-        print("  Press S: SAM REICH Tattoo")
         print("  Press 0: None (Original)")
         for key in ['1', '2', '3', '4', '5', '6', '7']:
             if key in self.filters:

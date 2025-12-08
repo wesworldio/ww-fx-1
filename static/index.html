@@ -1044,15 +1044,6 @@
         
         // Format filter name for display
         function formatFilterName(filter) {
-            if (filter === 'dropout_logo') {
-                return 'DROPOUT';
-            } else if (filter === 'dropout_face_mask_sam' || filter === 'assets_face_mask_sam' || filter === 'sam_face_mask') {
-                return 'Sam';
-            } else if (filter === 'dropout_face_mask_ariel' || filter === 'assets_face_mask_ariel' || filter === 'ariel_face_mask') {
-                return 'Ariel';
-            } else if (filter === 'sam_reich') {
-                return 'Sam Reich';
-            }
             // Parse hierarchical names: <folder>_<type>_<option>
             const parts = filter.split('_');
             if (parts.length >= 3) {

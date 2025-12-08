@@ -293,113 +293,6 @@ class FaceFilter:
         
         return result
     
-    def apply_dropout_logo(self, frame: np.ndarray, face: Tuple[int, int, int, int]) -> np.ndarray:
-        """
-        Apply DROPOUT logo to forehead area of detected face.
-        """
-        x, y, w, h = face
-        result = frame.copy()
-        
-        # Try to load DROPOUT logo from assets
-        logo_path = os.path.join(os.path.dirname(__file__), 'assets', 'dropout.png')
-        
-        if os.path.exists(logo_path):
-            logo_img = cv2.imread(logo_path, cv2.IMREAD_UNCHANGED)
-            if logo_img is not None:
-                # Calculate forehead area (top 15% of face height)
-                forehead_y = y + int(h * 0.05)
-                forehead_h = int(h * 0.15)
-                logo_width = int(w * 0.4)  # Logo width is 40% of face width
-                logo_height = int(logo_width * (logo_img.shape[0] / logo_img.shape[1]))  # Maintain aspect ratio
-                
-                # Ensure logo fits in forehead area
-                if logo_height > forehead_h:
-                    logo_height = forehead_h
-                    logo_width = int(logo_height * (logo_img.shape[1] / logo_img.shape[0]))
-                
-                # Resize logo
-                logo_resized = cv2.resize(logo_img, (logo_width, logo_height))
-                
-                # Center logo on forehead
-                logo_x = x + (w - logo_width) // 2
-                logo_y = forehead_y
-                
-                # Ensure we don't go out of bounds
-                frame_h, frame_w = frame.shape[:2]
-                if logo_x + logo_width > frame_w:
-                    logo_x = frame_w - logo_width
-                if logo_y + logo_height > frame_h:
-                    logo_y = frame_h - logo_height
-                if logo_x < 0:
-                    logo_x = 0
-                if logo_y < 0:
-                    logo_y = 0
-                
-                # Extract ROI
-                roi = result[logo_y:logo_y+logo_height, logo_x:logo_x+logo_width]
-                
-                # Blend logo with alpha channel if available
-                if logo_resized.shape[2] == 4:
-                    alpha = logo_resized[:, :, 3:4] / 255.0
-                    logo_bgr = logo_resized[:, :, :3]
-                    
-                    if roi.shape[:2] == (logo_height, logo_width):
-                        blended = (alpha * logo_bgr + (1 - alpha) * roi).astype(np.uint8)
-                        result[logo_y:logo_y+logo_height, logo_x:logo_x+logo_width] = blended
-                    else:
-                        # Handle edge case where ROI is smaller
-                        crop_h, crop_w = roi.shape[:2]
-                        logo_cropped = logo_resized[:crop_h, :crop_w]
-                        if logo_cropped.shape[2] == 4:
-                            alpha_crop = logo_cropped[:, :, 3:4] / 255.0
-                            logo_bgr_crop = logo_cropped[:, :, :3]
-                            blended = (alpha_crop * logo_bgr_crop + (1 - alpha_crop) * roi).astype(np.uint8)
-                            result[logo_y:logo_y+crop_h, logo_x:logo_x+crop_w] = blended
-                else:
-                    # No alpha channel, just overlay
-                    if roi.shape[:2] == (logo_height, logo_width):
-                        result[logo_y:logo_y+logo_height, logo_x:logo_x+logo_width] = logo_resized
-                    else:
-                        crop_h, crop_w = roi.shape[:2]
-                        result[logo_y:logo_y+crop_h, logo_x:logo_x+crop_w] = logo_resized[:crop_h, :crop_w]
-                
-                return result
-        
-        # Fallback: Draw text if logo file doesn't exist
-        forehead_y = y + int(h * 0.1)
-        text_scale = max(0.5, w / 800.0)
-        thickness = max(2, int(text_scale * 2))
-        
-        text = "DROPOUT"
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        
-        (text_width, text_height), baseline = cv2.getTextSize(text, font, text_scale, thickness)
-        text_x = x + (w - text_width) // 2
-        text_y = forehead_y + text_height
-        
-        cv2.putText(result, text, (text_x, text_y), font, text_scale, (0, 255, 255), thickness)  # Yellow color
-        
-        return result
-    
-    def apply_sam_reich_tattoo(self, frame: np.ndarray, face: Tuple[int, int, int, int]) -> np.ndarray:
-        x, y, w, h = face
-        result = frame.copy()
-        
-        forehead_y = y + int(h * 0.1)
-        text_scale = max(0.5, w / 800.0)
-        thickness = max(2, int(text_scale * 2))
-        
-        text = "SAM REICH"
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        
-        (text_width, text_height), baseline = cv2.getTextSize(text, font, text_scale, thickness)
-        text_x = x + (w - text_width) // 2
-        text_y = forehead_y + text_height
-        
-        cv2.putText(result, text, (text_x, text_y), font, text_scale, (0, 0, 0), thickness)
-        
-        return result
-    
     def detect_facial_landmarks(self, frame: np.ndarray) -> Optional[dict]:
         """
         Detect facial landmarks using MediaPipe for better face mask alignment.
@@ -467,7 +360,7 @@ class FaceFilter:
         Args:
             frame: Input frame
             face: Face coordinates (unused, kept for compatibility)
-            asset_name: Name of the asset file (without extension, e.g., 'sam' or 'ariel')
+            asset_name: Name of the asset file (without extension, e.g., 'mask_name')
             debug_mode: If True, use 50% opacity to help align eyes. Default: False
             asset_dir: Directory to load asset from ('assets' or 'assets/dropout'). Default: 'assets'
         
@@ -640,39 +533,6 @@ class FaceFilter:
                 result[new_y:new_y+crop_h, new_x:new_x+crop_w] = asset_resized[:crop_h, :crop_w]
         
         return result
-    
-    def apply_assets_face_mask_sam(self, frame: np.ndarray, face: Tuple[int, int, int, int]) -> np.ndarray:
-        """Apply Sam face mask from assets/ (wrapper for apply_face_mask_from_asset)"""
-        return self.apply_face_mask_from_asset(frame, face, 'sam', asset_dir='assets')
-    
-    def apply_assets_face_mask_ariel(self, frame: np.ndarray, face: Tuple[int, int, int, int]) -> np.ndarray:
-        """Apply Ariel face mask from assets/ (wrapper for apply_face_mask_from_asset)"""
-        return self.apply_face_mask_from_asset(frame, face, 'ariel', asset_dir='assets')
-    
-    def apply_dropout_face_mask_sam(self, frame: np.ndarray, face: Tuple[int, int, int, int]) -> np.ndarray:
-        """Apply Dropout Sam face mask from assets/dropout/face_mask/"""
-        return self.apply_face_mask_from_asset(frame, face, 'sam', asset_dir='assets/dropout/face_mask')
-    
-    def apply_dropout_face_mask_ariel(self, frame: np.ndarray, face: Tuple[int, int, int, int]) -> np.ndarray:
-        """Apply Dropout Ariel face mask from assets/dropout/face_mask/"""
-        return self.apply_face_mask_from_asset(frame, face, 'ariel', asset_dir='assets/dropout/face_mask')
-    
-    # Legacy aliases for backward compatibility
-    def apply_sam_face_mask(self, frame: np.ndarray, face: Tuple[int, int, int, int]) -> np.ndarray:
-        """Legacy alias for assets_face_mask_sam"""
-        return self.apply_assets_face_mask_sam(frame, face)
-    
-    def apply_ariel_face_mask(self, frame: np.ndarray, face: Tuple[int, int, int, int]) -> np.ndarray:
-        """Legacy alias for assets_face_mask_ariel"""
-        return self.apply_assets_face_mask_ariel(frame, face)
-    
-    def apply_dropout_sam_face_mask(self, frame: np.ndarray, face: Tuple[int, int, int, int]) -> np.ndarray:
-        """Legacy alias for dropout_face_mask_sam"""
-        return self.apply_dropout_face_mask_sam(frame, face)
-    
-    def apply_dropout_ariel_face_mask(self, frame: np.ndarray, face: Tuple[int, int, int, int]) -> np.ndarray:
-        """Legacy alias for dropout_face_mask_ariel"""
-        return self.apply_dropout_face_mask_ariel(frame, face)
     
     def apply_black_white(self, frame: np.ndarray, face: Tuple[int, int, int, int]) -> np.ndarray:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -1702,15 +1562,6 @@ class FaceFilter:
             'pinch': self.apply_pinch,
             'wave': self.apply_wave,
             'mirror': self.apply_mirror_split,
-            'assets_face_mask_sam': self.apply_assets_face_mask_sam,
-            'assets_face_mask_ariel': self.apply_assets_face_mask_ariel,
-            'dropout_face_mask_sam': self.apply_dropout_face_mask_sam,
-            'dropout_face_mask_ariel': self.apply_dropout_face_mask_ariel,
-            # Legacy aliases
-            'sam_face_mask': self.apply_sam_face_mask,
-            'ariel_face_mask': self.apply_ariel_face_mask,
-            'dropout_sam_face_mask': self.apply_dropout_sam_face_mask,
-            'dropout_ariel_face_mask': self.apply_dropout_ariel_face_mask,
             'twirl': self.apply_twirl,
             'ripple': self.apply_ripple,
             'sphere': self.apply_sphere,
@@ -1756,7 +1607,6 @@ class FaceFilter:
             'kaleidoscope': self.apply_kaleidoscope,
             'glitch': self.apply_glitch,
             'double_vision': self.apply_double_vision,
-            'sam_reich': self.apply_sam_reich_tattoo,
             'black_white': self.apply_black_white,
             'sepia': self.apply_sepia,
             'vintage': self.apply_vintage,

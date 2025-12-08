@@ -454,7 +454,7 @@ A fully client-side version that runs entirely in the browser without any backen
 3. Works on desktop, mobile, and all modern browsers
 
 **Option 2: JavaScript Edition (Compatible)**
-1. Open `static/standalone.html` in your web browser
+1. Open `index.html` in your web browser (Note: `standalone.html` has been archived to `archive/standalone.html`)
 2. Uses JavaScript filters (compatible with older browsers)
 
 **Hosting on GitHub Pages:**
@@ -484,7 +484,7 @@ A fully client-side version that runs entirely in the browser without any backen
 ### Requirements
 
 - Modern web browser with camera access
-- `assets/dropout/face_mask/` folder with face mask images (sam.png, ariel.png)
+- `assets/dropout/face_mask/` folder with face mask images (sam.png)
 
 ## Web-Based Version (Server)
 

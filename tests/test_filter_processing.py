@@ -157,7 +157,7 @@ def test_filter_api_returns_all_filters(web_server, page: Page):
         'black_white', 'sepia', 'negative',  # Color
         'thermal', 'plasma', 'jet',  # Color maps
         'blur', 'sharpen', 'pixelate',  # Effects
-        'sam_reich', 'sam_face_mask'  # Special
+        # Face masks are discovered dynamically
     }
     
     for expected in expected_filters:
@@ -227,7 +227,7 @@ def test_filter_categories_work(web_server, page: Page):
         'color': ['black_white', 'sepia', 'negative', 'rainbow'],
         'colormap': ['thermal', 'plasma', 'jet', 'turbo'],
         'effects': ['blur', 'sharpen', 'pixelate', 'glow'],
-        'special': ['sam_reich', 'sam_face_mask']
+        # Face masks are discovered dynamically
     }
     
     for category, filter_list in category_tests.items():

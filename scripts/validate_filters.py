@@ -71,20 +71,26 @@ def test_filter_application(filter_name: str, test_frame: np.ndarray, filter_app
             'pixelate', 'blur', 'sharpen', 'emboss'
         }
         
-        face_tracking_filters = {'sam_reich', 'sam_face_mask'}
-        
+        # Face mask filters are handled dynamically
         frame = test_frame.copy()
         frame_count = 0
         
-        if filter_name in face_tracking_filters:
-            if filter_name == 'sam_reich':
-                face = filter_app.detect_face(frame)
-                if face:
-                    frame = filter_app.apply_sam_reich_tattoo(frame, face)
-            elif filter_name == 'sam_face_mask':
+        if 'face_mask' in filter_name:
+            # Parse filter name to extract folder and mask name
+            parts = filter_name.split('_')
+            if len(parts) >= 3:
+                folder = parts[0]
+                mask_name = parts[-1]
+                if folder == 'dropout':
+                    asset_dir = 'assets/dropout/face_mask'
+                elif folder == 'assets':
+                    asset_dir = 'assets/face_mask'
+                else:
+                    asset_dir = f'assets/{folder}/face_mask'
                 faces = filter_app.detect_all_faces(frame)
                 if faces:
-                    frame = filter_app.apply_sam_face_mask(frame, faces)
+                    for face in faces:
+                        frame = filter_app.apply_face_mask_from_asset(frame.copy(), face, mask_name, asset_dir=asset_dir)
         elif filter_name in animated_filters:
             dummy_face = (0, 0, frame.shape[1], frame.shape[0])
             filter_method = getattr(filter_app, f'apply_{filter_name}', None)

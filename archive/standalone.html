@@ -675,7 +675,7 @@
         
         // Filter definitions
         const FILTER_CATEGORIES = {
-            'DROPOUT': ['dropout_logo', 'dropout_face_mask_sam', 'dropout_face_mask_ariel'],
+            'DROPOUT': [],  // Face masks are discovered dynamically
             'Distortion': ['bulge', 'stretch', 'swirl', 'fisheye', 'pinch', 'wave', 'mirror',
                           'twirl', 'ripple', 'sphere', 'tunnel', 'water_ripple',
                           'radial_blur', 'cylinder', 'barrel', 'pincushion', 'whirlpool', 'radial_zoom',
@@ -1267,18 +1267,6 @@
                     // Draw face mask synchronously (images are preloaded)
                     applyFaceMaskSync(ctx, x, y, width, height);
                 });
-            } else if (currentFilter === 'dropout_logo') {
-                // Apply logo to first detected face
-                if (detections.length > 0 && detections[0] && detections[0].box) {
-                    const detection = detections[0];
-                    const box = detection.box;
-                    const x = box.x;
-                    const y = box.y;
-                    const width = box.width;
-                    const height = box.height;
-                    
-                    applyDropoutLogo(ctx, x, y, width, height);
-                }
             }
         }
         
@@ -1336,17 +1324,6 @@
             // Use applyFaceMaskSync instead for synchronous drawing
             // Immediately call sync version to prevent flickering
             return applyFaceMaskSync(ctx, x, y, width, height);
-        }
-        
-        // Apply dropout logo
-        async function applyDropoutLogo(ctx, x, y, width, height) {
-            // Similar to face mask but for logo
-            // This would need a logo image asset
-            // For now, just draw a placeholder
-            ctx.save();
-            ctx.fillStyle = '#5250ef';
-            ctx.fillRect(x, y, width, height * 0.3);
-            ctx.restore();
         }
         
         // Apply distortion filter to face region
@@ -1539,9 +1516,6 @@
         
         // UI Functions (copied from main version)
         function formatFilterName(filter) {
-            if (filter === 'dropout_logo') return 'DROPOUT';
-            if (filter === 'dropout_face_mask_sam' || filter === 'assets_face_mask_sam' || filter === 'sam_face_mask') return 'Sam';
-            if (filter === 'dropout_face_mask_ariel' || filter === 'assets_face_mask_ariel' || filter === 'ariel_face_mask') return 'Ariel';
             const parts = filter.split('_');
             if (parts.length >= 3) {
                 const option = parts[parts.length - 1];
@@ -2384,7 +2358,7 @@
         
         // Preload face mask images
         async function preloadFaceMasks() {
-            const masksToPreload = ['sam', 'ariel'];
+            const masksToPreload = ['sam'];
             console.log('Preloading face mask images...');
             
             for (const maskName of masksToPreload) {

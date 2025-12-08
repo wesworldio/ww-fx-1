@@ -82,23 +82,27 @@ def create_comparison(filter_type: str, original_frame: np.ndarray, output_path:
         'pixelate', 'blur', 'sharpen', 'emboss'
     }
     
-    face_tracking_filters = {'sam_reich', 'sam_face_mask'}
-    
+    # Face mask filters are handled dynamically
     try:
-        if filter_type in face_tracking_filters:
-            if filter_type == 'sam_reich':
-                face = filter_app.detect_face(original_frame)
-                if face:
-                    filtered_frame = filter_app.apply_sam_reich_tattoo(original_frame.copy(), face)
+        if 'face_mask' in filter_type:
+            # Parse filter name to extract folder and mask name
+            parts = filter_type.split('_')
+            if len(parts) >= 3:
+                folder = parts[0]
+                mask_name = parts[-1]
+                if folder == 'dropout':
+                    asset_dir = 'assets/dropout/face_mask'
+                elif folder == 'assets':
+                    asset_dir = 'assets/face_mask'
                 else:
-                    print("Warning: No face detected for sam_reich filter.")
-                    filtered_frame = original_frame.copy()
-            elif filter_type == 'sam_face_mask':
+                    asset_dir = f'assets/{folder}/face_mask'
                 faces = filter_app.detect_all_faces(original_frame)
                 if faces:
-                    filtered_frame = filter_app.apply_sam_face_mask(original_frame.copy(), faces)
+                    filtered_frame = original_frame.copy()
+                    for face in faces:
+                        filtered_frame = filter_app.apply_face_mask_from_asset(filtered_frame.copy(), face, mask_name, asset_dir=asset_dir)
                 else:
-                    print("Warning: No face detected for sam_face_mask filter.")
+                    print(f"Warning: No face detected for {filter_type} filter.")
                     filtered_frame = original_frame.copy()
             else:
                 filtered_frame = original_frame.copy()
@@ -181,7 +185,7 @@ def create_comparison(filter_type: str, original_frame: np.ndarray, output_path:
 def get_all_filters():
     return [
         'bulge', 'stretch', 'swirl', 'fisheye', 'pinch', 'wave', 'mirror',
-        'sam_face_mask', 'twirl', 'ripple', 'sphere', 'tunnel', 'water_ripple',
+        'twirl', 'ripple', 'sphere', 'tunnel', 'water_ripple',
         'radial_blur', 'cylinder', 'barrel', 'pincushion', 'whirlpool',
         'radial_zoom', 'concave', 'convex', 'spiral', 'radial_stretch',
         'radial_compress', 'vertical_wave', 'horizontal_wave', 'skew_horizontal',

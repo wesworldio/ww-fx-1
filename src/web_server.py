@@ -21,7 +21,7 @@ active_connections = {}
 def get_all_filters():
     return [
         # DROPOUT
-        'dropout_face_mask_sam', 'dropout_face_mask_ariel',
+        # Face masks are discovered dynamically from assets/dropout/face_mask/
         # Distortion
         'bulge', 'stretch', 'swirl', 'fisheye', 'pinch', 'wave', 'mirror',
         'twirl', 'ripple', 'sphere', 'tunnel', 'water_ripple',
@@ -46,7 +46,7 @@ def get_all_filters():
 # Get filters organized by category for UI grouping
 def get_filters_by_category():
     return {
-        'DROPOUT': ['dropout_face_mask_sam', 'dropout_face_mask_ariel'],
+        'DROPOUT': [],  # Face masks are discovered dynamically
         'Distortion': ['bulge', 'stretch', 'swirl', 'fisheye', 'pinch', 'wave', 'mirror',
                       'twirl', 'ripple', 'sphere', 'tunnel', 'water_ripple',
                       'radial_blur', 'cylinder', 'barrel', 'pincushion', 'whirlpool', 'radial_zoom',
@@ -269,10 +269,8 @@ async def websocket_endpoint(websocket: WebSocket):
                                 'pixelate', 'blur', 'sharpen', 'emboss'
                             }
                             
-                            face_tracking_filters = {'dropout_face_mask_sam', 'dropout_face_mask_ariel'}
-                            
                             # Parse hierarchical filter names: <assets_folder>_<fx_type>_<fx_option>
-                            # Example: dropout_face_mask_ariel -> folder: dropout, type: face_mask, option: ariel
+                            # Example: dropout_face_mask_<name> -> folder: dropout, type: face_mask, option: <name>
                             def parse_filter_name(filter_name):
                                 """Parse hierarchical filter name into components"""
                                 parts = filter_name.split('_')
@@ -284,11 +282,10 @@ async def websocket_endpoint(websocket: WebSocket):
                                     return folder, fx_type, option
                                 return None, None, None
                             
-                            # Face mask filters that use assets
-                            face_mask_assets = {}
-                            for fx_filter_name in face_tracking_filters:
-                                if 'face_mask' in fx_filter_name:
-                                    folder, fx_type, option = parse_filter_name(fx_filter_name)
+                            try:
+                                # Check if this is a face mask filter dynamically
+                                if 'face_mask' in filter_name:
+                                    folder, fx_type, option = parse_filter_name(filter_name)
                                     if folder and fx_type == 'face_mask' and option:
                                         # Map to asset directory based on hierarchical structure
                                         # Format: <folder>_<fx_type>_<option> -> assets/<folder>/<fx_type>/<option>.png
@@ -298,27 +295,20 @@ async def websocket_endpoint(websocket: WebSocket):
                                             asset_dir = 'assets/face_mask'
                                         else:
                                             asset_dir = f'assets/{folder}/face_mask'
-                                        face_mask_assets[fx_filter_name] = (option, asset_dir)
-                                        print(f"[BUILD] Mapped filter '{fx_filter_name}' -> asset '{option}' from '{asset_dir}'")
-                            
-                            try:
-                                if filter_name in face_tracking_filters:
-                                    if filter_name in face_mask_assets:
+                                        
                                         # Use dynamic asset loading - same processing for all face masks
-                                        asset_name, asset_dir = face_mask_assets[filter_name]
-                                        print(f"[FILTER DEBUG] Applying face mask: filter='{filter_name}' -> asset='{asset_name}', dir='{asset_dir}'")
-                                        print(f"[FILTER DEBUG] face_mask_assets dict: {face_mask_assets}")
+                                        print(f"[FILTER DEBUG] Applying face mask: filter='{filter_name}' -> asset='{option}', dir='{asset_dir}'")
                                         faces = filter_app.detect_all_faces(frame)
                                         if faces and len(faces) > 0:
-                                            print(f"[FILTER DEBUG] Found {len(faces)} face(s), applying mask '{asset_name}' from '{asset_dir}'...")
+                                            print(f"[FILTER DEBUG] Found {len(faces)} face(s), applying mask '{option}' from '{asset_dir}'...")
                                             # Apply mask to all detected faces
                                             for face in faces:
-                                                frame = filter_app.apply_face_mask_from_asset(frame.copy(), face, asset_name, asset_dir=asset_dir)
-                                            print(f"[FILTER DEBUG] Face mask '{asset_name}' applied successfully for filter: {filter_name}")
+                                                frame = filter_app.apply_face_mask_from_asset(frame.copy(), face, option, asset_dir=asset_dir)
+                                            print(f"[FILTER DEBUG] Face mask '{option}' applied successfully for filter: {filter_name}")
                                         else:
                                             print(f"[FILTER DEBUG] No faces detected for filter: {filter_name}")
-                                    else:
-                                        print(f"[FILTER DEBUG] Filter '{filter_name}' not in face_mask_assets. Available: {list(face_mask_assets.keys())}")
+                                        else:
+                                            print(f"[FILTER DEBUG] Could not parse face mask filter name: {filter_name}")
                                 elif filter_name in animated_filters:
                                     dummy_face = (0, 0, frame.shape[1], frame.shape[0])
                                     filter_method = getattr(filter_app, f'apply_{filter_name}', None)
