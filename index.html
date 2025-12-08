@@ -1597,6 +1597,18 @@
             originalConsole.error(...args);
         };
         
+        // Mobile device detection
+        function isMobileDevice() {
+            // Check user agent for mobile devices
+            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+            const mobileRegex = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i;
+            
+            // Also check screen width as a fallback
+            const isSmallScreen = window.innerWidth <= 768;
+            
+            return mobileRegex.test(userAgent) || isSmallScreen;
+        }
+        
         // State
         let faceLandmarker = null;
         let wasmModule = null;
@@ -2486,6 +2498,9 @@
             console.log('Face mask preloading complete');
         }
         
+        // Track if we've already warned about tainted canvas (to avoid spam)
+        let taintedCanvasWarned = false;
+        
         // Apply face mask to canvas with eye alignment
         function applyFaceMask(ctx, faceRect, faceLandmarks, filterName) {
             // Extract mask name from filter (e.g., dropout_face_mask_<name> -> <name>)
@@ -2737,7 +2752,14 @@
                 maskCtx.restore();
                 
                 // Extract alpha channel from rotated mask
-                const maskImageData = maskCtx.getImageData(0, 0, canvasW, canvasH);
+                // Wrap in try-catch to handle tainted canvas (cross-origin images)
+                let maskImageData;
+                try {
+                    maskImageData = maskCtx.getImageData(0, 0, canvasW, canvasH);
+                } catch (e) {
+                    // Canvas is tainted (cross-origin image), fallback to simple draw
+                    throw new Error('Canvas tainted by cross-origin data');
+                }
                 
                 // Get the region of interest from the main canvas (the face area)
                 // Use rotated dimensions to ensure we capture the full rotated mask
@@ -2901,7 +2923,24 @@
                 
             } catch (error) {
                 // Fallback to simple draw if advanced compositing fails
-                console.warn('Advanced compositing failed, using simple blend:', error);
+                // Only warn once for tainted canvas issues to avoid spam
+                const isTaintedCanvas = error.message && (
+                    error.message.includes('tainted') || 
+                    error.message.includes('cross-origin') ||
+                    error.toString().includes('tainted') ||
+                    error.toString().includes('cross-origin')
+                );
+                
+                if (isTaintedCanvas && taintedCanvasWarned) {
+                    // Silently fallback - already warned
+                } else {
+                    if (isTaintedCanvas) {
+                        taintedCanvasWarned = true;
+                        console.warn('Advanced compositing unavailable (cross-origin image). Using simple blend mode.');
+                    } else {
+                        console.warn('Advanced compositing failed, using simple blend:', error);
+                    }
+                }
                 ctx.globalCompositeOperation = 'source-over';
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
