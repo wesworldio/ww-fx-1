@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="description" content="WesWorld FX - High-performance face filters using WebAssembly. Works on desktop, mobile, and all modern browsers.">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>WesWorld FX</title>
     
     <!-- Preconnect for performance -->
@@ -132,15 +135,30 @@
             100% { transform: rotate(360deg); }
         }
         
+        /* Screen reader only - accessible but visually hidden */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+        
         .settings-section,
-        .fx-section {
+        .fx-section,
+        .help-section {
             margin-bottom: 20px;
             padding-bottom: 15px;
             border-bottom: 1px solid var(--border-color, #333);
         }
         
         .settings-section:last-child,
-        .fx-section:last-child {
+        .fx-section:last-child,
+        .help-section:last-child {
             border-bottom: none;
         }
         
@@ -168,12 +186,71 @@
             transform: rotate(90deg);
         }
         
-        .settings-section-content {
+        .settings-section-content,
+        .help-section-content {
             display: none;
         }
         
-        .settings-section.expanded .settings-section-content {
+        .settings-section.expanded .settings-section-content,
+        .help-section.expanded .help-section-content {
             display: block;
+        }
+        
+        .help-section-content {
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        
+        .help-category {
+            margin-bottom: 16px;
+        }
+        
+        .help-category-title {
+            font-weight: bold;
+            color: var(--accent-color, #5250ef);
+            margin-bottom: 8px;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .help-command {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 6px;
+            padding: 4px 0;
+        }
+        
+        .help-command-desc {
+            flex: 1;
+            color: var(--text-secondary-color, #cccccc);
+            margin-right: 12px;
+        }
+        
+        .help-command-key {
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            background: var(--surface-hover-color, #2a2a2a);
+            border: 1px solid var(--border-color, #333);
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 11px;
+            color: var(--text-color, white);
+            white-space: nowrap;
+            min-width: fit-content;
+        }
+        
+        .help-command-key.combo {
+            padding: 2px 4px;
+        }
+        
+        .help-command-key kbd {
+            display: inline-block;
+            padding: 1px 4px;
+            margin: 0 2px;
+            background: var(--surface-color, #1a1a1a);
+            border: 1px solid var(--border-color, #333);
+            border-radius: 3px;
         }
         
         /* Legacy dropdown removed - using modal search instead */
@@ -346,9 +423,13 @@
             gap: 8px;
             transition: all 0.2s;
             margin-top: 4px;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
         }
         
-        .fx-search-trigger:hover {
+        .fx-search-trigger:hover,
+        .fx-search-trigger:active {
             background: var(--surface-hover-color, #2a2a2a);
             border-color: var(--accent-color, #5250ef);
         }
@@ -357,7 +438,15 @@
             font-size: 16px;
         }
         
-        /* Spotlight-style search modal */
+        @media (max-width: 768px) {
+            .fx-search-trigger {
+                padding: 16px;
+                font-size: 16px;
+                min-height: 48px;
+            }
+        }
+        
+        /* Spotlight-style search modal - Full screen */
         .fx-search-modal {
             display: none;
             position: fixed;
@@ -365,18 +454,30 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             z-index: 10000;
             align-items: flex-start;
             justify-content: center;
-            padding-top: 10vh;
+            padding: 0;
             animation: fadeIn 0.2s ease-out;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+            /* Ensure it's above everything */
+            isolation: isolate;
         }
         
-        .fx-search-modal.active {
+        .fx-search-modal.active,
+        .fx-search-modal[aria-hidden="false"] {
             display: flex;
+        }
+        
+        .fx-search-modal[aria-hidden="true"] {
+            display: none;
         }
         
         @keyframes fadeIn {
@@ -389,16 +490,76 @@
         }
         
         .fx-search-modal-content {
-            width: 90%;
+            width: 100%;
             max-width: 600px;
-            background: var(--surface-color, #1a1a1a);
-            border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            background: #1e1e1e;
+            border-radius: 0;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
             overflow: hidden;
             animation: slideDown 0.2s ease-out;
-            max-height: 70vh;
+            max-height: 85vh;
             display: flex;
             flex-direction: column;
+            margin: 0;
+            position: relative;
+            pointer-events: auto;
+            /* Better contrast and readability */
+            color: #ffffff;
+            border: 1px solid #333;
+        }
+        
+        /* Prevent clicks inside content from closing modal */
+        .fx-search-modal-content * {
+            pointer-events: auto;
+        }
+        
+        /* Mobile-first responsive design */
+        @media (max-width: 768px) {
+            .fx-search-modal {
+                padding: 0;
+                align-items: stretch;
+                /* Safe area insets for notched devices */
+                padding-top: env(safe-area-inset-top);
+                padding-bottom: env(safe-area-inset-bottom);
+                padding-left: env(safe-area-inset-left);
+                padding-right: env(safe-area-inset-right);
+            }
+            
+            .fx-search-modal-content {
+                width: 100%;
+                max-width: 100%;
+                border-radius: 0;
+                max-height: 100vh;
+                min-height: 100vh;
+                /* Account for safe areas */
+                max-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+                min-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+            }
+        }
+        
+        /* Tablet and desktop */
+        @media (min-width: 769px) {
+            .fx-search-modal {
+                padding-top: 8vh;
+                padding-bottom: 8vh;
+                padding-left: 2vw;
+                padding-right: 2vw;
+            }
+            
+            .fx-search-modal-content {
+                border-radius: 8px;
+                max-height: 75vh;
+                box-shadow: 0 12px 48px rgba(0, 0, 0, 0.7);
+                /* Better spacing on larger screens */
+                margin: 0 auto;
+            }
+        }
+        
+        /* Large desktop */
+        @media (min-width: 1200px) {
+            .fx-search-modal-content {
+                max-width: 550px;
+            }
         }
         
         @keyframes slideDown {
@@ -413,22 +574,57 @@
         }
         
         .fx-search-header {
-            padding: 16px;
-            border-bottom: 1px solid var(--border-color, #333);
+            padding: 12px 16px;
+            border-bottom: 1px solid #333;
             display: flex;
             align-items: center;
             position: relative;
+            flex-shrink: 0;
+            background: #1e1e1e;
+            /* Better spacing and touch targets */
+            gap: 12px;
+        }
+        
+        @media (max-width: 768px) {
+            .fx-search-header {
+                padding: 14px 16px;
+                /* Safe area padding for notched devices */
+                padding-left: max(16px, env(safe-area-inset-left));
+                padding-right: max(16px, env(safe-area-inset-right));
+                padding-top: max(14px, env(safe-area-inset-top));
+            }
         }
         
         .fx-search-header .fx-search-input {
             width: 100%;
-            padding: 12px 32px 12px 16px;
-            background: var(--surface-hover-color, #2a2a2a);
-            border: 1px solid var(--border-color, #333);
-            border-radius: 8px;
-            font-size: 16px;
+            padding: 10px 36px 10px 14px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 6px;
+            font-size: 15px;
             color: #ffffff !important;
             min-width: 0;
+            -webkit-appearance: none;
+            appearance: none;
+            /* Better focus visibility */
+            transition: border-color 0.2s, box-shadow 0.2s;
+            font-weight: 400;
+        }
+        
+        .fx-search-header .fx-search-input:focus {
+            outline: none;
+            border-color: #ffd700;
+            box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.2);
+            background: #2f2f2f;
+        }
+        
+        @media (max-width: 768px) {
+            .fx-search-header .fx-search-input {
+                padding: 12px 40px 12px 16px;
+                font-size: 16px;
+                min-height: 48px; /* Larger touch target for mobile */
+                border-width: 1px;
+            }
         }
         
         .fx-search-clear {
@@ -442,16 +638,18 @@
             cursor: pointer;
             font-size: 18px;
             line-height: 1;
-            padding: 0;
+            padding: 8px;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.2s, color 0.2s;
+            transition: opacity 0.2s, color 0.2s, background-color 0.2s;
             display: flex;
             align-items: center;
             justify-content: center;
-            width: 20px;
-            height: 20px;
+            min-width: 44px; /* Minimum touch target size (WCAG) */
+            min-height: 44px;
+            border-radius: 50%;
             z-index: 1;
+            -webkit-tap-highlight-color: transparent;
         }
         
         .fx-search-clear.visible {
@@ -459,25 +657,34 @@
             pointer-events: all;
         }
         
-        .fx-search-clear:hover {
+        .fx-search-clear:hover,
+        .fx-search-clear:focus {
             color: #ffffff;
+            background-color: rgba(255, 255, 255, 0.1);
+            outline: 2px solid var(--accent-color, #5250ef);
+            outline-offset: 2px;
+        }
+        
+        .fx-search-clear:active {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        @media (max-width: 768px) {
+            .fx-search-clear {
+                right: 20px;
+                min-width: 48px;
+                min-height: 48px;
+                font-size: 20px;
+            }
         }
         
         .fx-search-header .fx-search-input::placeholder {
-            color: #888888 !important;
+            color: #999 !important;
             opacity: 1;
         }
         
-        .fx-search-header .fx-search-input:focus {
-            outline: none;
-            border-color: var(--accent-color, #5250ef);
-            box-shadow: 0 0 0 3px rgba(82, 80, 239, 0.2);
-            color: #ffffff !important;
-            background: var(--surface-hover-color, #2a2a2a);
-        }
-        
         .fx-search-header .fx-search-input:focus::placeholder {
-            color: #666666 !important;
+            color: #777 !important;
         }
         
         .fx-search-header .fx-search-input:-webkit-autofill,
@@ -489,8 +696,42 @@
         
         .fx-search-results {
             overflow-y: auto;
-            max-height: calc(70vh - 80px);
-            padding: 8px;
+            max-height: calc(85vh - 80px);
+            padding: 4px;
+            -webkit-overflow-scrolling: touch;
+            flex: 1;
+            background: #1e1e1e;
+            /* Better scrollbar styling */
+            scrollbar-width: thin;
+            scrollbar-color: #ffd700 transparent;
+        }
+        
+        .fx-search-results::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .fx-search-results::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .fx-search-results::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 3px;
+        }
+        
+        .fx-search-results::-webkit-scrollbar-thumb:hover {
+            background: #666;
+        }
+        
+        @media (max-width: 768px) {
+            .fx-search-results {
+                max-height: calc(85vh - 100px);
+                padding: 8px;
+                /* Account for safe areas */
+                padding-left: max(8px, env(safe-area-inset-left));
+                padding-right: max(8px, env(safe-area-inset-right));
+                padding-bottom: max(8px, env(safe-area-inset-bottom));
+            }
         }
         
         .fx-search-results .fx-dropdown-menu,
@@ -507,30 +748,43 @@
         }
         
         .fx-search-results .fx-group {
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
         
         .fx-search-results .fx-option {
-            padding: 12px 16px;
+            padding: 10px 12px;
+        }
+        
+        /* Ensure all text in modal is visible */
+        .fx-search-modal-content,
+        .fx-search-modal-content * {
+            color: #ffffff;
+        }
+        
+        .fx-search-modal-content .fx-option-text,
+        .fx-search-modal-content .fx-group-title,
+        .fx-search-modal-content button {
+            color: inherit;
         }
         
         .fx-group {
-            margin-bottom: 10px;
+            margin-bottom: 4px;
         }
         
         .fx-group-title {
-            padding: 8px 12px;
-            font-size: 11px;
-            font-weight: bold;
-            color: var(--group-title-color, #5250ef);
+            padding: 6px 12px;
+            font-size: 10px;
+            font-weight: 700;
+            color: #ffd700;
             text-transform: uppercase;
-            background: var(--surface-hover-color, #2a2a2a);
-            border-bottom: 1px solid var(--border-color, #333);
+            background: #252525;
+            border-bottom: 1px solid #333;
+            letter-spacing: 0.5px;
         }
         
         .fx-option {
-            padding: 12px 16px;
-            color: var(--text-color, white);
+            padding: 10px 12px;
+            color: #ffffff !important;
             cursor: pointer;
             border: none;
             background: transparent;
@@ -539,41 +793,128 @@
             font-size: 14px;
             display: flex;
             align-items: center;
-            gap: 8px;
-            transition: background 0.2s;
+            gap: 10px;
+            transition: all 0.15s;
+            min-height: 40px; /* WCAG minimum touch target */
+            -webkit-tap-highlight-color: transparent;
+            position: relative;
+            user-select: none;
+            font-weight: 400;
         }
         
-        .fx-option:hover {
-            background: var(--surface-hover-color, #2a2a2a);
+        .fx-option:hover,
+        .fx-option:focus {
+            background: #2a2a2a;
+            outline: none;
+        }
+        
+        .fx-option:active {
+            background: #333;
+            transform: scale(0.99);
+        }
+        
+        /* Better touch feedback on mobile */
+        @media (hover: none) and (pointer: coarse) {
+            .fx-option:active {
+                background: #333;
+                transform: scale(0.98);
+            }
         }
         
         .fx-option.selected {
-            background: var(--accent-color, #5250ef);
-            color: var(--selected-text-color, #ffffff);
+            background: #ffd700 !important;
+            color: #000000 !important;
+            font-weight: 600;
+            border: none;
+        }
+        
+        .fx-option.selected:focus {
+            outline: none;
+            background: #ffd700 !important;
+        }
+        
+        .fx-option.selected:hover {
+            background: #ffed4e !important;
+        }
+        
+        @media (max-width: 768px) {
+            .fx-option {
+                padding: 12px 14px;
+                font-size: 15px;
+                min-height: 48px; /* Larger touch target on mobile */
+            }
         }
         
         .fx-option-image {
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             object-fit: cover;
-            border-radius: 4px;
-            border: 1px solid var(--border-color, #333);
+            border-radius: 50%;
+            border: 2px solid #444;
+            flex-shrink: 0;
+        }
+        
+        .fx-option.selected .fx-option-image {
+            border-color: #000;
         }
         
         .fx-option-text {
             flex: 1;
+            min-width: 0; /* Allow text to shrink if needed */
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: inherit !important;
+            white-space: nowrap;
         }
         
         .fx-option-pin {
             cursor: pointer;
-            font-size: 16px;
-            padding: 4px;
-            opacity: 0.7;
-            transition: opacity 0.2s;
+            font-size: 14px;
+            padding: 6px;
+            opacity: 0.6;
+            transition: opacity 0.2s, background-color 0.2s, transform 0.1s;
+            background: transparent;
+            border: none;
+            border-radius: 4px;
+            min-width: 32px;
+            min-height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+            flex-shrink: 0;
+            margin-left: auto;
         }
         
-        .fx-option-pin:hover {
+        .fx-option:hover .fx-option-pin {
+            opacity: 0.9;
+        }
+        
+        .fx-option-pin:hover,
+        .fx-option-pin:focus {
             opacity: 1;
+            background-color: rgba(255, 255, 255, 0.15);
+            outline: none;
+        }
+        
+        .fx-option-pin:active {
+            background-color: rgba(255, 255, 255, 0.25);
+            transform: scale(0.9);
+        }
+        
+        /* Ensure pin button doesn't interfere with option click */
+        .fx-option-pin:active,
+        .fx-option-pin:focus {
+            z-index: 1;
+            position: relative;
+        }
+        
+        @media (max-width: 768px) {
+            .fx-option-pin {
+                min-width: 36px;
+                min-height: 36px;
+                font-size: 16px;
+            }
         }
         
         .fx-current-pin {
@@ -676,6 +1017,19 @@
                     </label>
                     <button id="resetFaceMaskZoomButton" style="width: 100%;">Reset to Default</button>
                 </div>
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border-color, #333);">
+                    <div style="font-size: 12px; color: var(--text-secondary-color, #cccccc);">
+                        <div style="margin-bottom: 4px;">
+                            <strong>Version:</strong> <span id="appVersion">1.0.0</span>
+                        </div>
+                        <div style="margin-bottom: 4px;">
+                            <strong>Build:</strong> <span id="appBuild">0</span>
+                        </div>
+                        <div>
+                            <strong>Last Update:</strong> <span id="lastUpdateTime">Never</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -702,17 +1056,116 @@
                 </div>
             </label>
             
-            <!-- Spotlight-style FX Search Modal -->
-            <div id="fxSearchModal" class="fx-search-modal">
-                <div class="fx-search-modal-content">
-                    <div class="fx-search-header">
-                        <input type="text" id="fxSearchInput" class="fx-search-input" placeholder="Search FX..." autocomplete="off">
-                        <button class="fx-search-clear" id="fxSearchClear" type="button" aria-label="Clear search">×</button>
+        </div>
+        
+        <!-- Help Section -->
+        <div class="help-section">
+            <div class="section-title" id="helpToggle">Help</div>
+            <div class="help-section-content">
+                <div class="help-category">
+                    <div class="help-category-title">Navigation</div>
+                    <div class="help-command">
+                        <span class="help-command-desc">Toggle UI visibility</span>
+                        <span class="help-command-key">H</span>
                     </div>
-                    <div class="fx-search-results" id="fxSearchResults">
-                        <div id="fxOptionsContainer" class="fx-dropdown-menu"></div>
+                    <div class="help-command">
+                        <span class="help-command-desc">Open FX search</span>
+                        <span class="help-command-key combo"><kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>K</kbd></span>
                     </div>
                 </div>
+                
+                <div class="help-category">
+                    <div class="help-category-title">Filter Controls</div>
+                    <div class="help-command">
+                        <span class="help-command-desc">Previous filter</span>
+                        <span class="help-command-key">↑ / ←</span>
+                    </div>
+                    <div class="help-command">
+                        <span class="help-command-desc">Next filter</span>
+                        <span class="help-command-key">↓ / →</span>
+                    </div>
+                    <div class="help-command">
+                        <span class="help-command-desc">Random cycle</span>
+                        <span class="help-command-key">Space</span>
+                    </div>
+                    <div class="help-command">
+                        <span class="help-command-desc">Clear filter</span>
+                        <span class="help-command-key">C / Esc</span>
+                    </div>
+                </div>
+                
+                <div class="help-category">
+                    <div class="help-category-title">Face Mask Controls</div>
+                    <div class="help-command">
+                        <span class="help-command-desc">Increase mask size</span>
+                        <span class="help-command-key">+ / =</span>
+                    </div>
+                    <div class="help-command">
+                        <span class="help-command-desc">Decrease mask size</span>
+                        <span class="help-command-key">- / _</span>
+                    </div>
+                    <div class="help-command">
+                        <span class="help-command-desc">(Only active when face mask filter is selected)</span>
+                        <span class="help-command-key" style="visibility: hidden;"></span>
+                    </div>
+                </div>
+                
+                <div class="help-category">
+                    <div class="help-category-title">Tips</div>
+                    <div style="color: var(--text-secondary-color, #cccccc); font-size: 11px; line-height: 1.5;">
+                        • Click the pin icon (📌) to save favorite filters<br>
+                        • Drag pinned filters to reorder them<br>
+                        • Use search (⌘/Ctrl+K) to quickly find filters<br>
+                        • Press H to hide/show the UI for clean video capture
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Spotlight-style FX Search Modal - Outside controls for full viewport coverage -->
+    <div 
+        id="fxSearchModal" 
+        class="fx-search-modal" 
+        role="dialog" 
+        aria-modal="true" 
+        aria-labelledby="fxSearchModalTitle" 
+        aria-hidden="true"
+        tabindex="-1"
+    >
+        <div class="fx-search-modal-content">
+            <div class="fx-search-header">
+                <h2 id="fxSearchModalTitle" class="sr-only">Search Filters</h2>
+                <label for="fxSearchInput" class="sr-only">Search for filters</label>
+                <input 
+                    type="text" 
+                    id="fxSearchInput" 
+                    class="fx-search-input" 
+                    placeholder="Search FX..." 
+                    autocomplete="off"
+                    aria-label="Search filters"
+                    aria-describedby="fxSearchHint"
+                    aria-controls="fxSearchResults"
+                    aria-expanded="false"
+                >
+                <button 
+                    class="fx-search-clear" 
+                    id="fxSearchClear" 
+                    type="button" 
+                    aria-label="Clear search"
+                    tabindex="0"
+                >×</button>
+                <span id="fxSearchHint" class="sr-only">Type to search filters. Press Escape to close, Enter to select first result.</span>
+            </div>
+            <div 
+                class="fx-search-results" 
+                id="fxSearchResults" 
+                role="listbox" 
+                aria-label="Filter options"
+                aria-live="polite"
+                aria-atomic="false"
+            >
+                <div id="fxOptionsContainer" class="fx-dropdown-menu" role="group"></div>
             </div>
         </div>
     </div>
@@ -752,6 +1205,130 @@
         const targetFPS = 60;
         let faceMaskScale = 1.0; // Scale factor for face mask size adjustment
         const frameInterval = 1000 / targetFPS;
+        
+        // Version and build tracking
+        const APP_VERSION = '1.0.0';
+        const BUILD_TIMESTAMP = Date.now(); // Current build timestamp
+        const BUILD_NUMBER_KEY = 'wesworld-fx-build-number';
+        const BUILD_TIMESTAMP_KEY = 'wesworld-fx-build-timestamp';
+        
+        // Get or initialize build number
+        function getBuildNumber() {
+            try {
+                const stored = localStorage.getItem(BUILD_NUMBER_KEY);
+                if (stored) {
+                    return parseInt(stored, 10);
+                }
+                return 0;
+            } catch (e) {
+                return 0;
+            }
+        }
+        
+        // Increment and save build number
+        function updateBuildInfo() {
+            try {
+                const currentBuild = getBuildNumber();
+                const newBuild = currentBuild + 1;
+                localStorage.setItem(BUILD_NUMBER_KEY, newBuild.toString());
+                localStorage.setItem(BUILD_TIMESTAMP_KEY, BUILD_TIMESTAMP.toString());
+                return newBuild;
+            } catch (e) {
+                console.error('Error updating build info:', e);
+                return getBuildNumber();
+            }
+        }
+        
+        // Get last build timestamp
+        function getLastBuildTimestamp() {
+            try {
+                const stored = localStorage.getItem(BUILD_TIMESTAMP_KEY);
+                if (stored) {
+                    return parseInt(stored, 10);
+                }
+                return BUILD_TIMESTAMP;
+            } catch (e) {
+                return BUILD_TIMESTAMP;
+            }
+        }
+        
+        // Format time since last update
+        function formatTimeSince(timestamp) {
+            const now = Date.now();
+            const diff = now - timestamp;
+            const seconds = Math.floor(diff / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+            const weeks = Math.floor(days / 7);
+            const months = Math.floor(days / 30);
+            
+            if (seconds < 60) {
+                return `${seconds} sec${seconds !== 1 ? 's' : ''} ago`;
+            } else if (minutes < 60) {
+                return `${minutes} min${minutes !== 1 ? 's' : ''} ago`;
+            } else if (hours < 24) {
+                return `${hours} hr${hours !== 1 ? 's' : ''} ago`;
+            } else if (days < 7) {
+                return `${days} day${days !== 1 ? 's' : ''} ago`;
+            } else if (weeks < 4) {
+                return `${weeks} week${weeks !== 1 ? 's' : ''} ago`;
+            } else if (months < 12) {
+                return `${months} month${months !== 1 ? 's' : ''} ago`;
+            } else {
+                const years = Math.floor(months / 12);
+                return `${years} year${years !== 1 ? 's' : ''} ago`;
+            }
+        }
+        
+        // Update version display
+        function updateVersionDisplay() {
+            const versionEl = document.getElementById('appVersion');
+            const buildEl = document.getElementById('appBuild');
+            const updateEl = document.getElementById('lastUpdateTime');
+            
+            if (versionEl) {
+                versionEl.textContent = APP_VERSION;
+            }
+            
+            if (buildEl) {
+                const lastTimestamp = getLastBuildTimestamp();
+                // Check if this is a new build (different timestamp)
+                if (lastTimestamp !== BUILD_TIMESTAMP) {
+                    // This is a new build, increment build number
+                    const newBuild = updateBuildInfo();
+                    buildEl.textContent = newBuild.toString();
+                } else {
+                    // Same build, just show current build number
+                    const buildNum = getBuildNumber();
+                    buildEl.textContent = buildNum.toString();
+                }
+            }
+            
+            if (updateEl) {
+                const lastTimestamp = getLastBuildTimestamp();
+                // Check if this is a new build
+                if (lastTimestamp !== BUILD_TIMESTAMP) {
+                    // This is a new build, update the timestamp
+                    updateBuildInfo();
+                    updateEl.textContent = 'Just now';
+                } else {
+                    // Show time since last update
+                    updateEl.textContent = formatTimeSince(lastTimestamp);
+                }
+            }
+        }
+        
+        // Update time display periodically
+        function startTimeUpdateInterval() {
+            const updateEl = document.getElementById('lastUpdateTime');
+            if (updateEl) {
+                setInterval(() => {
+                    const lastTimestamp = getLastBuildTimestamp();
+                    updateEl.textContent = formatTimeSince(lastTimestamp);
+                }, 60000); // Update every minute
+            }
+        }
         
         // Filter categories (matching original)
         // Face masks will be added dynamically after discovery
@@ -1053,12 +1630,19 @@
             noneOption.className = 'fx-option' + (currentFilter === '' ? ' selected' : '');
             noneOption.textContent = 'None (Original)';
             noneOption.value = '';
-            noneOption.onclick = (e) => {
+            const handleNoneClick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 selectFilter('');
                 closeFxSearchModal();
             };
+            noneOption.onclick = handleNoneClick;
+            // Also handle touch events for mobile
+            noneOption.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleNoneClick(e);
+            }, { passive: false });
             fxOptionsContainer.appendChild(noneOption);
             
             // Add filters by category
@@ -1090,6 +1674,11 @@
             const option = document.createElement('button');
             option.className = 'fx-option' + (currentFilter === filter ? ' selected' : '');
             option.value = filter;
+            option.type = 'button'; // Prevent form submission
+            option.setAttribute('role', 'option');
+            option.setAttribute('aria-selected', currentFilter === filter ? 'true' : 'false');
+            option.setAttribute('aria-label', `Apply filter: ${formatFilterName(filter)}`);
+            option.setAttribute('tabindex', '0');
             
             if (filter.includes('face_mask')) {
                 const optionText = document.createElement('span');
@@ -1105,6 +1694,7 @@
                     optionImage.src = `assets/dropout/face_mask/mask_${optionName}.png`;
                 }
                 optionImage.alt = formatFilterName(filter);
+                optionImage.setAttribute('aria-hidden', 'true'); // Decorative image
                 optionImage.onerror = function() {
                     this.style.display = 'none';
                 };
@@ -1119,11 +1709,15 @@
             }
             
             if (filter) {
-                const pinIcon = document.createElement('span');
+                const pinIcon = document.createElement('button');
                 pinIcon.className = 'fx-option-pin';
+                pinIcon.type = 'button';
+                pinIcon.setAttribute('aria-label', pinnedFilters.includes(filter) ? 'Unpin filter' : 'Pin filter');
                 pinIcon.innerHTML = pinnedFilters.includes(filter) ? '📌' : '📍';
                 pinIcon.title = pinnedFilters.includes(filter) ? 'Unpin' : 'Pin';
-                pinIcon.onclick = (e) => {
+                pinIcon.setAttribute('tabindex', '0');
+                const handlePinClick = (e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     if (pinnedFilters.includes(filter)) {
                         unpinFilter(filter);
@@ -1136,15 +1730,60 @@
                         }
                     }
                 };
+                
+                pinIcon.onclick = handlePinClick;
+                // Also handle touch events for mobile
+                pinIcon.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handlePinClick(e);
+                }, { passive: false });
+                
+                // Keyboard support for pin button
+                pinIcon.onkeydown = (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handlePinClick(e);
+                    }
+                };
                 option.appendChild(pinIcon);
             }
             
-            option.onclick = (e) => {
+            // Handle both click and touch events for better mobile/desktop support
+            const handleOptionClick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 selectFilter(filter);
                 closeFxSearchModal();
             };
+            
+            option.onclick = handleOptionClick;
+            // Also handle touch events explicitly for mobile
+            option.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleOptionClick(e);
+            }, { passive: false });
+            
+            // Keyboard support
+            option.onkeydown = (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleOptionClick(e);
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const next = option.nextElementSibling?.querySelector('.fx-option') || 
+                                 option.closest('.fx-group')?.nextElementSibling?.querySelector('.fx-option');
+                    if (next) next.focus();
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const prev = option.previousElementSibling || 
+                                option.closest('.fx-group')?.previousElementSibling?.querySelectorAll('.fx-option');
+                    if (prev && prev.length > 0) prev[prev.length - 1].focus();
+                }
+            };
+            
             return option;
         }
         
@@ -1159,20 +1798,34 @@
             }
         }
         
+        // Store element that had focus before modal opened (for focus trap)
+        let previousActiveElement = null;
+        
         // Open FX search modal
         function openFxSearchModal() {
             console.log('openFxSearchModal called', { fxSearchModal, fxSearchInput });
             if (fxSearchModal) {
+                // Store current focus for restoration
+                previousActiveElement = document.activeElement;
+                
+                // Update ARIA attributes
+                fxSearchModal.setAttribute('aria-hidden', 'false');
                 fxSearchModal.classList.add('active');
                 // Force display style to ensure it shows
                 fxSearchModal.style.display = 'flex';
+                
+                // Prevent body scroll when modal is open
+                document.body.style.overflow = 'hidden';
+                
                 console.log('Modal class added, active:', fxSearchModal.classList.contains('active'));
                 console.log('Modal style display:', fxSearchModal.style.display);
+                
                 // Load filters if not already loaded
                 if (fxOptionsContainer && fxOptionsContainer.children.length === 0) {
                     loadFilters();
                 }
-                // Focus search input after modal opens
+                
+                // Focus search input after modal opens (accessibility best practice)
                 setTimeout(() => {
                     if (fxSearchInput) {
                         fxSearchInput.focus();
@@ -1181,6 +1834,8 @@
                         if (fxSearchClear) {
                             updateClearButtonVisibility();
                         }
+                        // Update aria-expanded
+                        fxSearchInput.setAttribute('aria-expanded', 'true');
                     }
                 }, 100);
             } else {
@@ -1191,13 +1846,31 @@
         // Close FX search modal
         function closeFxSearchModal() {
             if (fxSearchModal) {
+                // Update ARIA attributes
+                fxSearchModal.setAttribute('aria-hidden', 'true');
                 fxSearchModal.classList.remove('active');
                 fxSearchModal.style.display = 'none';
+                
+                // Restore body scroll
+                document.body.style.overflow = '';
+                
                 // Clear search
                 if (fxSearchInput) {
                     fxSearchInput.value = '';
                     filterFxOptions('');
+                    fxSearchInput.setAttribute('aria-expanded', 'false');
                 }
+                
+                // Restore focus to previous element (accessibility)
+                if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
+                    try {
+                        previousActiveElement.focus();
+                    } catch (e) {
+                        // Fallback if element is no longer focusable
+                        console.warn('Could not restore focus to previous element');
+                    }
+                }
+                previousActiveElement = null;
             }
         }
         
@@ -4146,6 +4819,16 @@
                 });
             }
             
+            // Help section toggle
+            const helpToggle = document.getElementById('helpToggle');
+            if (helpToggle) {
+                helpToggle.addEventListener('click', () => {
+                    const helpSection = helpToggle.closest('.help-section');
+                    helpSection.classList.toggle('expanded');
+                    helpToggle.classList.toggle('expanded');
+                });
+            }
+            
             if (startButton) {
                 startButton.addEventListener('click', startCamera);
             }
@@ -4200,15 +4883,25 @@
                 });
             }
             
-            // Spotlight-style search trigger
+            // Spotlight-style search trigger - toggle on click/tap
             if (fxSearchTrigger) {
                 console.log('Setting up fxSearchTrigger click handler');
-                fxSearchTrigger.addEventListener('click', (e) => {
+                // Handle both click and touch for better mobile support - toggle behavior
+                const handleSearchToggle = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    console.log('fxSearchTrigger clicked');
-                    openFxSearchModal();
-                });
+                    console.log('fxSearchTrigger clicked/touched');
+                    // Toggle: open if closed, close if open
+                    if (fxSearchModal && fxSearchModal.classList.contains('active')) {
+                        closeFxSearchModal();
+                    } else {
+                        openFxSearchModal();
+                    }
+                };
+                
+                fxSearchTrigger.addEventListener('click', handleSearchToggle);
+                // Also handle touch for better mobile support
+                fxSearchTrigger.addEventListener('touchend', handleSearchToggle, { passive: false });
             } else {
                 console.error('fxSearchTrigger element not found!');
             }
@@ -4227,13 +4920,48 @@
                 });
             }
             
-            // Close modal when clicking outside
+            // Close modal when clicking/tapping outside (works for both mouse and touch)
             if (fxSearchModal) {
-                fxSearchModal.addEventListener('click', (e) => {
-                    if (e.target === fxSearchModal) {
+                // Handle both click and touch events for better mobile support
+                const handleModalClose = (e) => {
+                    // Close if clicking on the backdrop (modal itself, not the content)
+                    // Check if click is directly on modal or outside content area
+                    const clickedContent = e.target.closest('.fx-search-modal-content');
+                    if (e.target === fxSearchModal || !clickedContent) {
+                        e.preventDefault();
+                        e.stopPropagation();
                         closeFxSearchModal();
                     }
+                };
+                
+                // Use mousedown for better responsiveness
+                fxSearchModal.addEventListener('mousedown', (e) => {
+                    if (e.target === fxSearchModal) {
+                        handleModalClose(e);
+                    }
                 });
+                
+                // Also handle click as fallback
+                fxSearchModal.addEventListener('click', handleModalClose);
+                
+                // Touch events for mobile
+                fxSearchModal.addEventListener('touchstart', (e) => {
+                    if (e.target === fxSearchModal) {
+                        // Store the touch target
+                        fxSearchModal._touchTarget = e.target;
+                    }
+                }, { passive: true });
+                
+                fxSearchModal.addEventListener('touchend', (e) => {
+                    // Only close if touch started and ended on the backdrop
+                    if (fxSearchModal._touchTarget === fxSearchModal && 
+                        (e.target === fxSearchModal || !e.target.closest('.fx-search-modal-content'))) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        closeFxSearchModal();
+                    }
+                    fxSearchModal._touchTarget = null;
+                }, { passive: false });
             }
             
             // Search input in modal
@@ -4242,12 +4970,18 @@
                     const searchValue = e.target.value;
                     filterFxOptions(searchValue);
                     updateClearButtonVisibility();
+                    // Update aria-expanded based on results
+                    const hasResults = fxOptionsContainer && 
+                        fxOptionsContainer.querySelector('.fx-option:not([style*="display: none"])');
+                    fxSearchInput.setAttribute('aria-expanded', hasResults ? 'true' : 'false');
                 });
                 
                 fxSearchInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Escape') {
+                        e.preventDefault();
                         closeFxSearchModal();
                     } else if (e.key === 'Enter') {
+                        e.preventDefault();
                         const optionsContainer = document.getElementById('fxOptionsContainer');
                         if (optionsContainer) {
                             const firstVisible = optionsContainer.querySelector('.fx-option:not([style*="display: none"])');
@@ -4256,6 +4990,31 @@
                                 closeFxSearchModal();
                             }
                         }
+                    } else if (e.key === 'ArrowDown') {
+                        // Allow arrow keys to navigate results
+                        e.preventDefault();
+                        const optionsContainer = document.getElementById('fxOptionsContainer');
+                        if (optionsContainer) {
+                            const firstVisible = optionsContainer.querySelector('.fx-option:not([style*="display: none"])');
+                            if (firstVisible) {
+                                firstVisible.focus();
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Clear button handler
+            if (fxSearchClear) {
+                fxSearchClear.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (fxSearchInput) {
+                        fxSearchInput.value = '';
+                        fxSearchInput.focus();
+                        filterFxOptions('');
+                        updateClearButtonVisibility();
+                        fxSearchInput.setAttribute('aria-expanded', 'false');
                     }
                 });
             }
@@ -4379,6 +5138,10 @@
                 // Now load filters (which will include discovered face masks)
                 loadFilters();
                 setupEventListeners();
+                
+                // Update version and build display
+                updateVersionDisplay();
+                startTimeUpdateInterval();
                 
                 // Load face mask scale from localStorage
                 try {
@@ -4531,14 +5294,32 @@
             }
         }
         
+        // Cache busting - add version parameter to URL if not present
+        function addCacheBusting() {
+            const url = new URL(window.location.href);
+            const currentVersion = url.searchParams.get('v');
+            if (!currentVersion || currentVersion !== APP_VERSION) {
+                url.searchParams.set('v', APP_VERSION);
+                url.searchParams.set('b', BUILD_TIMESTAMP.toString());
+                // Use replaceState to avoid adding to history
+                window.history.replaceState({}, '', url.toString());
+            }
+        }
+        
         // Load theme as soon as DOM elements are available
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
+                addCacheBusting();
                 loadThemeEarly();
+                updateVersionDisplay();
+                startTimeUpdateInterval();
                 init();
             });
         } else {
+            addCacheBusting();
             loadThemeEarly();
+            updateVersionDisplay();
+            startTimeUpdateInterval();
             init();
         }
     </script>

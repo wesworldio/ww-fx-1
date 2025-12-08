@@ -1,4 +1,4 @@
-.PHONY: help install install-test run-bulge run-stretch run-swirl run-fisheye run-pinch run-wave run-mirror preview-bulge preview-stretch preview-swirl preview-fisheye preview-pinch preview-wave preview-mirror interactive interactive-daemon interactive-daemon-stop interactive-daemon-status interactive-daemon-restart interactive-daemon-logs interactive-daemon-logs-json test clean comparison web test-e2e test-install
+.PHONY: help install install-test run-bulge run-stretch run-swirl run-fisheye run-pinch run-wave run-mirror preview-bulge preview-stretch preview-swirl preview-fisheye preview-pinch preview-wave preview-mirror interactive interactive-daemon interactive-daemon-stop interactive-daemon-status interactive-daemon-restart interactive-daemon-logs interactive-daemon-logs-json test clean comparison web web-daemon web-stop web-logs web-status wasm-build wasm-clean wasm-watch wasm-daemon wasm-daemon-stop wasm-daemon-status wasm-daemon-logs dev dev-stop test-e2e test-install
 
 FILTERS = bulge stretch swirl fisheye pinch wave mirror
 WIDTH = 1280
@@ -7,7 +7,25 @@ FPS = 30
 
 help:
 	@echo "WesWorld FX Commands:"
+	@echo ""
+	@echo "Installation:"
 	@echo "  make install          - Install Python dependencies"
+	@echo "  make install-test     - Install test dependencies (Playwright)"
+	@echo ""
+	@echo "WASM Build (NEW):"
+	@echo "  make wasm-build       - Build WASM module"
+	@echo "  make wasm-clean       - Clean WASM build artifacts"
+	@echo "  make wasm-watch       - Watch WASM files and rebuild on changes (foreground)"
+	@echo "  make wasm-daemon      - Start WASM watcher as daemon with auto-rebuild"
+	@echo "  make wasm-daemon-stop - Stop WASM watcher daemon"
+	@echo "  make wasm-daemon-status - Check WASM watcher status"
+	@echo "  make wasm-daemon-logs - View WASM watcher logs (tail -f)"
+	@echo ""
+	@echo "Development (NEW):"
+	@echo "  make dev              - Start web server + WASM watcher (foreground)"
+	@echo "  make dev-stop         - Stop all dev services (web + WASM)"
+	@echo ""
+	@echo "Filters:"
 	@echo "  make run-bulge        - Run bulge distortion filter"
 	@echo "  make run-stretch      - Run stretch distortion filter"
 	@echo "  make run-swirl        - Run swirl distortion filter"
@@ -17,22 +35,29 @@ help:
 	@echo "  make run-mirror       - Run mirror split filter"
 	@echo "  make preview-bulge    - Preview only (no virtual camera)"
 	@echo "  make preview-<filter> - Preview any filter (replace <filter> with filter name)"
+	@echo ""
+	@echo "Interactive Mode:"
 	@echo "  make interactive       - Interactive mode: switch filters with 1-7 keys"
 	@echo "  make interactive-daemon - Start interactive mode as daemon with auto-reload"
 	@echo "  make interactive-daemon-stop - Stop interactive daemon"
 	@echo "  make interactive-daemon-status - Check daemon status"
 	@echo "  make interactive-daemon-logs - View daemon logs (tail -f)"
 	@echo "  make interactive-daemon-logs-json - View JSON logs from logs/ directory"
+	@echo ""
+	@echo "Web Server:"
 	@echo "  make web               - Start web server with hot reload (foreground)"
 	@echo "  make web-daemon        - Start web server as daemon with hot reload"
 	@echo "  make web-stop          - Stop web server daemon"
 	@echo "  make web-logs          - View web server logs (tail -f)"
 	@echo "  make web-status        - Check web server status"
+	@echo ""
+	@echo "Testing:"
 	@echo "  make test             - Test camera and face detection"
 	@echo "  make test-e2e         - Run end-to-end web tests (requires test-install)"
 	@echo "  make test-filters     - Run filter processing validation tests"
 	@echo "  make validate-filters - Validate filters work (requires web server running)"
-	@echo "  make test-install     - Install test dependencies (Playwright)"
+	@echo ""
+	@echo "Utilities:"
 	@echo "  make comparison       - Generate before/after comparison images"
 	@echo "  make clean            - Remove Python cache files"
 	@echo ""
@@ -235,4 +260,92 @@ comparison:
 clean:
 	find . -type d -name __pycache__ -exec rm -r {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
+
+# WASM Build Commands
+wasm-build:
+	@echo "Building WASM module..."
+	@if [ ! -f wasm/build.sh ]; then \
+		echo "❌ Error: wasm/build.sh not found"; \
+		exit 1; \
+	fi
+	@chmod +x wasm/build.sh
+	@cd wasm && ./build.sh
+
+wasm-clean:
+	@echo "Cleaning WASM build artifacts..."
+	@rm -rf wasm/build 2>/dev/null || true
+	@rm -f static/wasm/wwfx_module.js static/wasm/wwfx_module.wasm 2>/dev/null || true
+	@echo "✅ WASM build artifacts cleaned"
+
+wasm-watch:
+	@echo "Starting WASM file watcher (foreground)..."
+	@echo "Watching for changes in wasm/src/, wasm/include/, and wasm/CMakeLists.txt"
+	@echo "Press Ctrl+C to stop"
+	@$(PYTHON) scripts/watch_wasm.py
+
+wasm-daemon:
+	@echo "Starting WASM watcher as daemon..."
+	@if [ -f /tmp/ww_fx_wasm.pid ]; then \
+		PID=$$(cat /tmp/ww_fx_wasm.pid); \
+		if ps -p $$PID > /dev/null 2>&1; then \
+			echo "⚠️  WASM watcher already running (PID: $$PID)"; \
+			echo "   Stop with: make wasm-daemon-stop"; \
+			exit 1; \
+		fi; \
+	fi
+	@echo "Building WASM module initially..."
+	@$(MAKE) wasm-build || true
+	@echo "Starting watcher daemon..."
+	@nohup $(PYTHON) scripts/watch_wasm.py > /tmp/ww_fx_wasm.log 2>&1 & \
+	echo $$! > /tmp/ww_fx_wasm.pid && \
+	echo "✅ WASM watcher started (PID: $$(cat /tmp/ww_fx_wasm.pid))"
+	@echo "To view logs: make wasm-daemon-logs"
+	@echo "To stop: make wasm-daemon-stop"
+
+wasm-daemon-stop:
+	@if [ -f /tmp/ww_fx_wasm.pid ]; then \
+		PID=$$(cat /tmp/ww_fx_wasm.pid); \
+		if ps -p $$PID > /dev/null 2>&1; then \
+			kill $$PID && echo "✅ Stopped WASM watcher (PID: $$PID)"; \
+		else \
+			echo "⚠️  Process $$PID not found"; \
+		fi; \
+		rm -f /tmp/ww_fx_wasm.pid; \
+	else \
+		echo "⚠️  No WASM watcher PID file found"; \
+	fi
+
+wasm-daemon-status:
+	@if [ -f /tmp/ww_fx_wasm.pid ]; then \
+		PID=$$(cat /tmp/ww_fx_wasm.pid); \
+		if ps -p $$PID > /dev/null 2>&1; then \
+			echo "✅ WASM watcher running (PID: $$PID)"; \
+		else \
+			echo "⚠️  WASM watcher not running (PID file exists but process not found)"; \
+		fi; \
+	else \
+		echo "⚠️  WASM watcher not running"; \
+	fi
+
+wasm-daemon-logs:
+	@if [ -f /tmp/ww_fx_wasm.log ]; then \
+		tail -f /tmp/ww_fx_wasm.log; \
+	else \
+		echo "⚠️  No log file found. Start watcher with: make wasm-daemon"; \
+	fi
+
+# Development mode: web server + WASM watcher
+dev:
+	@if [ -f /tmp/ww_fx_wasm.pid ] || [ -f /tmp/web_server.pid ]; then \
+		echo "⚠️  Some services may already be running"; \
+		echo "   Run 'make dev-stop' first to clean up"; \
+		echo ""; \
+	fi
+	@$(PYTHON) scripts/dev_server.py
+
+dev-stop:
+	@echo "Stopping all development services..."
+	@$(MAKE) wasm-daemon-stop
+	@$(MAKE) web-stop
+	@echo "✅ All services stopped"
 
