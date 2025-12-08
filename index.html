@@ -1627,7 +1627,26 @@
         }
         
         // Select filter
-        function selectFilter(filterValue) {
+        // Update URL with current FX
+        function updateURLWithFX(filterValue) {
+            // Skip URL updates for file:// protocol
+            if (window.location.protocol === 'file:') {
+                return;
+            }
+            
+            const url = new URL(window.location.href);
+            
+            if (filterValue && filterValue !== '') {
+                url.searchParams.set('fx', filterValue);
+            } else {
+                url.searchParams.delete('fx');
+            }
+            
+            // Update URL without reloading page
+            window.history.pushState({}, '', url);
+        }
+        
+        function selectFilter(filterValue, skipURLUpdate = false) {
             currentFilter = filterValue || '';
             
             if (currentFilter === '') {
@@ -1653,6 +1672,11 @@
                         opt.classList.add('selected');
                     }
                 });
+            }
+            
+            // Update URL unless we're in the middle of a roulette
+            if (!skipURLUpdate) {
+                updateURLWithFX(currentFilter);
             }
         }
         
@@ -1781,13 +1805,15 @@
             const maxCycles = 10;
             randomCycleInterval = setInterval(() => {
                 const randomFilter = filters[Math.floor(Math.random() * filters.length)];
-                selectFilter(randomFilter);
+                // Skip URL updates during roulette
+                selectFilter(randomFilter, true);
                 cycles++;
                 if (cycles >= maxCycles) {
                     clearInterval(randomCycleInterval);
                     randomCycleInterval = null;
                     const finalFilter = filters[Math.floor(Math.random() * filters.length)];
-                    selectFilter(finalFilter);
+                    // Update URL only after roulette ends
+                    selectFilter(finalFilter, false);
                     isRandomCycling = false;
                     console.log('Roulette finished on:', finalFilter);
                 }
@@ -4143,6 +4169,15 @@
                 loadPinnedFilters();
                 loadFilters();
                 setupEventListeners();
+                
+                // Load FX from URL if present (after filters are loaded)
+                setTimeout(() => {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const fxParam = urlParams.get('fx');
+                    if (fxParam && allFilters.includes(fxParam)) {
+                        selectFilter(fxParam, false);
+                    }
+                }, 100);
                 
                 // Preload face masks
                 await preloadFaceMasks();
