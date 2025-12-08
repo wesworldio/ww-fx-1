@@ -1181,6 +1181,87 @@
     <script type="module">
         import { FaceLandmarker, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3';
         
+        // Production detection: hide console logs in production (not localhost or file://)
+        const isDevelopment = (() => {
+            const hostname = window.location.hostname;
+            const protocol = window.location.protocol;
+            // Development if: localhost, 127.0.0.1, file:// protocol, or any IP address (likely local dev)
+            return hostname === 'localhost' || 
+                   hostname === '127.0.0.1' || 
+                   hostname.startsWith('192.168.') ||
+                   hostname.startsWith('10.') ||
+                   protocol === 'file:';
+        })();
+        
+        // Store original console methods
+        const originalConsole = {
+            log: console.log.bind(console),
+            warn: console.warn.bind(console),
+            info: console.info.bind(console),
+            error: console.error.bind(console)
+        };
+        
+        // Override console methods to only log in development
+        console.log = function(...args) {
+            if (isDevelopment) {
+                originalConsole.log(...args);
+            }
+        };
+        
+        console.warn = function(...args) {
+            if (isDevelopment) {
+                const message = args.join(' ');
+                // Suppress MediaPipe warnings even in development (they're just noise)
+                if (message.includes('Face blendshape model contains CPU only ops') ||
+                    message.includes('OpenGL error checking is disabled') ||
+                    message.includes('Sets FaceBlendshapesGraph acceleration')) {
+                    return; // Suppress MediaPipe warnings
+                }
+                originalConsole.warn(...args);
+            }
+        };
+        
+        console.info = function(...args) {
+            if (isDevelopment) {
+                const message = args.join(' ');
+                // Suppress MediaPipe info messages even in development (they're just noise)
+                if (message.includes('GL version:') || 
+                    message.includes('renderer:') ||
+                    message.includes('Graph successfully started') ||
+                    message.includes('Created TensorFlow Lite') ||
+                    message.includes('XNNPACK delegate')) {
+                    return; // Suppress MediaPipe info messages
+                }
+                originalConsole.info(...args);
+            }
+        };
+        
+        // console.error always logs real errors, but we'll filter MediaPipe noise and expected errors
+        console.error = function(...args) {
+            const message = args.join(' ');
+            
+            // Suppress MediaPipe internal log messages that come through as errors
+            if (message.includes('vision_wasm_internal') || message.includes('installHook.js')) {
+                // Suppress MediaPipe/TensorFlow info messages that come through as errors
+                if (message.includes('W1207') || message.includes('I1207') || message.includes('I1208') ||
+                    message.includes('INFO:') || message.includes('Created TensorFlow') ||
+                    message.includes('XNNPACK delegate') || message.includes('GL version:') ||
+                    message.includes('renderer:') || message.includes('Graph successfully started')) {
+                    return; // Suppress MediaPipe internal log messages
+                }
+            }
+            
+            // Suppress expected 404 errors during mask discovery
+            if ((message.includes('face_mask') || message.includes('mask_')) && 
+                (message.includes('404') || message.includes('Failed to load') || 
+                 message.includes('GET') || message.includes('Not Found'))) {
+                return; // Suppress expected mask discovery errors
+            }
+            
+            // Log real errors (always, not just in development)
+            originalConsole.error(...args);
+        };
+        
         // State
         let faceLandmarker = null;
         let wasmModule = null;
@@ -1404,48 +1485,7 @@
         // Initialize MediaPipe Face Landmarker
         async function initFaceDetection() {
             try {
-                // Suppress MediaPipe console warnings and info messages (they're informational, not errors)
-                // Must be done BEFORE importing MediaPipe to catch all messages
-                const originalWarn = console.warn;
-                const originalInfo = console.info;
-                
-                console.warn = function(...args) {
-                    // Filter out MediaPipe internal warnings
-                    const message = args.join(' ');
-                    if (message.includes('Face blendshape model contains CPU only ops') ||
-                        message.includes('OpenGL error checking is disabled') ||
-                        message.includes('Sets FaceBlendshapesGraph acceleration')) {
-                        return; // Suppress these warnings
-                    }
-                    originalWarn.apply(console, args);
-                };
-                
-                console.info = function(...args) {
-                    // Filter out MediaPipe GL version info (it's just informational)
-                    const message = args.join(' ');
-                    if (message.includes('GL version:') || 
-                        message.includes('renderer:') ||
-                        message.includes('Graph successfully started') ||
-                        message.includes('Created TensorFlow Lite') ||
-                        message.includes('XNNPACK delegate')) {
-                        return; // Suppress these info messages
-                    }
-                    originalInfo.apply(console, args);
-                };
-                
-                // Also suppress errors from vision_wasm_internal.js (they're actually warnings/info)
-                const originalError = console.error;
-                console.error = function(...args) {
-                    const message = args.join(' ');
-                    // Don't suppress actual errors, just MediaPipe internal log messages that come through as errors
-                    if (message.includes('vision_wasm_internal') && 
-                        (message.includes('W1207') || message.includes('I1207') ||
-                         message.includes('INFO:') || message.includes('Created TensorFlow'))) {
-                        return; // Suppress MediaPipe internal log messages
-                    }
-                    originalError.apply(console, args);
-                };
-                
+                // Console suppression is handled globally at the top of the script
                 const vision = await FilesetResolver.forVisionTasks(
                     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
                 );
@@ -1945,22 +1985,7 @@
                     'default', 'custom', 'mask', 'face'
                 ];
                 
-                // Suppress console errors for expected failures during discovery
-                const originalError = console.error;
-                const suppressedErrors = new Set();
-                console.error = function(...args) {
-                    const message = args.join(' ');
-                    // Suppress file not found errors during face mask discovery
-                    if (message.includes('face_mask') && 
-                        (message.includes('ERR_FILE_NOT_FOUND') || 
-                         message.includes('404') ||
-                         message.includes('Failed to load'))) {
-                        suppressedErrors.add(message);
-                        return; // Suppress this error
-                    }
-                    originalError.apply(console, args);
-                };
-                
+                // Error suppression is handled globally - 404s during discovery are expected
                 const discoveryPromises = potentialNames.map(async (maskName) => {
                     const assetPath = `${basePath}mask_${maskName}.png`;
                     
@@ -1983,7 +2008,7 @@
                         };
                         
                         img.onerror = () => {
-                            // Mask not found, continue silently
+                            // Mask not found, continue silently (404s are expected during discovery)
                             resolve({ name: maskName, found: false });
                         };
                         
@@ -1992,13 +2017,6 @@
                 });
                 
                 await Promise.all(discoveryPromises);
-                
-                // Restore original console.error
-                console.error = originalError;
-                
-                if (suppressedErrors.size > 0) {
-                    console.log(`Suppressed ${suppressedErrors.size} expected file not found errors during face mask discovery`);
-                }
             }
             
             console.log('Face mask discovery complete. Found:', discoveredFaceMasks);
