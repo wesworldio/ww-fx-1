@@ -2512,6 +2512,31 @@
         }
         
         // Select filter
+        // Clean up old URL parameters (v and b) that are no longer used
+        function cleanOldURLParams() {
+            if (window.location.protocol === 'file:') {
+                return;
+            }
+            
+            const url = new URL(window.location.href);
+            let needsUpdate = false;
+            
+            // Remove old version and build parameters
+            if (url.searchParams.has('v')) {
+                url.searchParams.delete('v');
+                needsUpdate = true;
+            }
+            if (url.searchParams.has('b')) {
+                url.searchParams.delete('b');
+                needsUpdate = true;
+            }
+            
+            // Update URL if we removed any parameters
+            if (needsUpdate) {
+                window.history.replaceState({}, '', url.toString());
+            }
+        }
+        
         // Update URL with current FX
         function updateURLWithFX(filterValue) {
             // Skip URL updates for file:// protocol
@@ -2520,6 +2545,10 @@
             }
             
             const url = new URL(window.location.href);
+            
+            // Remove old version and build parameters
+            url.searchParams.delete('v');
+            url.searchParams.delete('b');
             
             if (filterValue && filterValue !== '') {
                 url.searchParams.set('fx', filterValue);
@@ -5275,6 +5304,9 @@
                 }
             }
         }
+        
+        // Clean up old URL parameters on page load
+        cleanOldURLParams();
         
         // Load theme as soon as DOM elements are available
         if (document.readyState === 'loading') {
