@@ -767,6 +767,9 @@
         const themeSelect = document.getElementById('themeSelect');
         const loadingIndicator = document.getElementById('loadingIndicator');
         const testImageInput = document.getElementById('testImageInput');
+        // Legacy dropdown elements (may not exist if using modal search)
+        const fxDropdownMenu = document.getElementById('fxDropdownMenu');
+        const fxDropdownButton = document.getElementById('fxDropdownButton');
         const loadTestImageButton = document.getElementById('loadTestImageButton');
         const loadRefImageButton = document.getElementById('loadRefImageButton');
         const clearTestImageButton = document.getElementById('clearTestImageButton');
@@ -1535,7 +1538,7 @@
                         let maskAlpha = maskData[maskIdx + 3] * 0.003921568627451; // / 255.0
                         
                         // Fast edge feathering: distance from center (avoid sqrt when possible)
-                        const distX = (maskX - centerX) * invCenterX;
+                        const distX = (maskX - maskCanvasCenterX) * invCenterX;
                         const distFromCenter = Math.sqrt(distX * distX + distYSq);
                         
                         // Feather outer edges (beyond 90% of radius) - optimized
