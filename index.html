@@ -6288,6 +6288,87 @@
                 }
             });
             
+            // Touch/swipe gesture handlers for mobile filter navigation
+            let touchStartX = null;
+            let touchStartY = null;
+            const minSwipeDistance = 50; // Minimum distance in pixels to trigger a swipe
+            
+            document.addEventListener('touchstart', (e) => {
+                // Don't handle swipes if user is interacting with input fields or modals
+                if (e.target.tagName === 'INPUT' || 
+                    e.target.tagName === 'SELECT' || 
+                    e.target.isContentEditable ||
+                    (fxSearchModal && fxSearchModal.contains(e.target))) {
+                    return;
+                }
+                
+                // Get the first touch point
+                const touch = e.touches[0];
+                touchStartX = touch.clientX;
+                touchStartY = touch.clientY;
+            }, { passive: true });
+            
+            document.addEventListener('touchend', (e) => {
+                // Don't handle swipes if we didn't track a start position
+                if (touchStartX === null || touchStartY === null) {
+                    return;
+                }
+                
+                // Don't handle swipes if user is interacting with input fields or modals
+                if (e.target.tagName === 'INPUT' || 
+                    e.target.tagName === 'SELECT' || 
+                    e.target.isContentEditable ||
+                    (fxSearchModal && fxSearchModal.contains(e.target))) {
+                    touchStartX = null;
+                    touchStartY = null;
+                    return;
+                }
+                
+                // Get the end touch point
+                const touch = e.changedTouches[0];
+                const touchEndX = touch.clientX;
+                const touchEndY = touch.clientY;
+                
+                // Calculate swipe distance and direction
+                const deltaX = touchEndX - touchStartX;
+                const deltaY = touchEndY - touchStartY;
+                const absDeltaX = Math.abs(deltaX);
+                const absDeltaY = Math.abs(deltaY);
+                
+                // Determine if this is a valid swipe (must exceed minimum distance)
+                // and be primarily in one direction
+                if (absDeltaX > minSwipeDistance || absDeltaY > minSwipeDistance) {
+                    // Determine primary swipe direction
+                    if (absDeltaX > absDeltaY) {
+                        // Horizontal swipe
+                        if (deltaX > 0) {
+                            // Swipe right - next filter
+                            e.preventDefault();
+                            cycleNextFilter();
+                        } else {
+                            // Swipe left - previous filter
+                            e.preventDefault();
+                            cyclePrevFilter();
+                        }
+                    } else {
+                        // Vertical swipe
+                        if (deltaY > 0) {
+                            // Swipe down - next filter
+                            e.preventDefault();
+                            cycleNextFilter();
+                        } else {
+                            // Swipe up - previous filter
+                            e.preventDefault();
+                            cyclePrevFilter();
+                        }
+                    }
+                }
+                
+                // Reset touch start positions
+                touchStartX = null;
+                touchStartY = null;
+            }, { passive: false });
+            
             // Handle visibility change - reload camera on mobile after permission dialog closes
             let wasHidden = false;
             const reloadCameraIfNeeded = () => {
