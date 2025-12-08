@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="description" content="WesWorld FX - High-performance face filters using WebAssembly. Works on desktop, mobile, and all modern browsers.">
-    <title>WesWorld FX - WASM Edition</title>
+    <title>WesWorld FX</title>
     
     <!-- Preconnect for performance -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
@@ -1655,12 +1655,16 @@
                 if (clearFilterButton) {
                     clearFilterButton.style.display = 'none';
                 }
+                // Update title
+                document.title = 'WesWorld FX';
             } else {
                 fxSelectedText.textContent = formatFilterName(currentFilter);
                 updateCurrentPinIcon();
                 if (clearFilterButton) {
                     clearFilterButton.style.display = 'flex';
                 }
+                // Update title with filter name
+                document.title = 'WesWorld FX - ' + formatFilterName(currentFilter);
             }
             
             // Update selected state
