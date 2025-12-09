@@ -6933,6 +6933,27 @@
                 }, { passive: false });
             }
             
+            // Click outside menu to hide it, or click anywhere to show it when hidden (desktop/big window only)
+            document.addEventListener('click', (e) => {
+                // Only on desktop/big window (not mobile)
+                if (isMobileDevice()) {
+                    return;
+                }
+                
+                // If menu is hidden, show it on any click
+                if (!controlsVisible || controls.classList.contains('hidden')) {
+                    // Show the menu
+                    toggleUI();
+                    return;
+                }
+                
+                // Menu is visible - check if click is outside the controls element
+                if (controls && !controls.contains(e.target)) {
+                    // Hide the menu
+                    toggleUI();
+                }
+            });
+            
             // Settings toggle
             const settingsToggle = document.getElementById('settingsToggle');
             if (settingsToggle) {
