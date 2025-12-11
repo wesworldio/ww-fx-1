@@ -53,7 +53,7 @@ def main():
     # Initial WASM build
     print("📦 Building WASM module initially...")
     build_proc = subprocess.run(
-        ["make", "wasm-build"],
+        ["make", "build"],
         cwd=PROJECT_ROOT,
         capture_output=False
     )

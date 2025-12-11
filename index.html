@@ -2279,13 +2279,10 @@
         
         // Filter categories - will be built from current scene's fx configuration
         // Face masks will be added dynamically after discovery
-        let FILTER_CATEGORIES = {
-            'DROPOUT': []
-        };
+        let FILTER_CATEGORIES = {};
         
         // Default filter categories (for organizing when using flat array)
         const DEFAULT_FILTER_CATEGORIES = {
-            'DROPOUT': [],
             'Distortion': ['ultimate_distortion', 'bulge', 'stretch', 'swirl', 'fisheye', 'pinch', 'wave', 'mirror',
                           'twirl', 'ripple', 'sphere', 'tunnel', 'water_ripple',
                           'radial_blur', 'cylinder', 'barrel', 'pincushion', 'whirlpool', 'radial_zoom',
@@ -2312,42 +2309,58 @@
         
         // Build filter categories from current scene
         function buildFilterCategories() {
-            const currentSceneKey = sceneSelect ? sceneSelect.value : 'dropout';
-            const currentScene = SCENES[currentSceneKey];
+            const currentSceneKey = sceneSelect ? sceneSelect.value : null;
+            const currentScene = currentSceneKey ? SCENES[currentSceneKey] : null;
             
-            // Preserve DROPOUT face masks (added dynamically)
-            const existingDropoutMasks = (FILTER_CATEGORIES['DROPOUT'] || []).filter(
-                f => f.includes('face_mask')
-            );
+            if (!currentScene) {
+                FILTER_CATEGORIES = {};
+                allFilters.length = 0;
+                return;
+            }
             
-            // Start with DROPOUT (face masks preserved)
-            FILTER_CATEGORIES = {
-                'DROPOUT': existingDropoutMasks
-            };
+            // Preserve face masks (added dynamically) if scene has face mask config
+            let existingFaceMasks = [];
+            if (currentScene.faceMasks) {
+                const categoryName = currentScene.faceMasks.categoryName;
+                if (categoryName && FILTER_CATEGORIES[categoryName]) {
+                    existingFaceMasks = FILTER_CATEGORIES[categoryName].filter(
+                        f => f.includes('face_mask')
+                    );
+                }
+            }
+            
+            // Start with face masks category if scene has face mask config
+            FILTER_CATEGORIES = {};
+            if (currentScene.faceMasks && currentScene.faceMasks.categoryName) {
+                FILTER_CATEGORIES[currentScene.faceMasks.categoryName] = existingFaceMasks;
+            }
             
             // Process scene's fx configuration
-            if (currentScene && currentScene.fx) {
+            if (currentScene.fx) {
                 if (Array.isArray(currentScene.fx)) {
                     // Flat array: filter default categories to only include enabled filters
                     const enabledFilters = new Set(currentScene.fx);
+                    const faceMaskCategory = currentScene.faceMasks?.categoryName;
                     
                     Object.entries(DEFAULT_FILTER_CATEGORIES).forEach(([category, filters]) => {
-                        if (category !== 'DROPOUT') {
+                        if (category !== faceMaskCategory) {
                             FILTER_CATEGORIES[category] = filters.filter(f => enabledFilters.has(f));
                         }
                     });
                 } else if (typeof currentScene.fx === 'object') {
                     // Groups: use the groups directly
+                    const faceMaskCategory = currentScene.faceMasks?.categoryName;
                     Object.entries(currentScene.fx).forEach(([groupName, filters]) => {
-                        if (groupName !== 'DROPOUT') {
+                        if (groupName !== faceMaskCategory) {
                             FILTER_CATEGORIES[groupName] = Array.isArray(filters) ? filters : [];
                         }
                     });
                 }
             } else {
                 // No fx config: use all default categories
+                const faceMaskCategory = currentScene.faceMasks?.categoryName;
                 Object.entries(DEFAULT_FILTER_CATEGORIES).forEach(([category, filters]) => {
-                    if (category !== 'DROPOUT') {
+                    if (category !== faceMaskCategory) {
                         FILTER_CATEGORIES[category] = [...filters];
                     }
                 });
@@ -2827,11 +2840,31 @@
                 
                 const optionImage = document.createElement('img');
                 optionImage.className = 'fx-option-image';
-                const parts = filter.split('_');
-                const optionName = parts[parts.length - 1];
-                if (filter.startsWith('dropout_')) {
-                    // Use mask_<name>.png pattern for dropout face masks
-                    optionImage.src = `assets/dropout/face_mask/mask_${optionName}.png`;
+                
+                // Get current scene and its face mask configuration
+                const currentSceneKey = sceneSelect ? sceneSelect.value : null;
+                const currentScene = currentSceneKey ? SCENES[currentSceneKey] : null;
+                
+                if (currentScene && currentScene.faceMasks) {
+                    const faceMaskConfig = currentScene.faceMasks;
+                    const filterPrefix = faceMaskConfig.filterPrefix || '';
+                    
+                    // Extract mask name from filter
+                    let maskName = '';
+                    if (filter.startsWith(filterPrefix + 'face_mask_')) {
+                        maskName = filter.substring((filterPrefix + 'face_mask_').length);
+                    } else if (filter.includes('face_mask_')) {
+                        const parts = filter.split('face_mask_');
+                        if (parts.length > 1) {
+                            maskName = parts[parts.length - 1];
+                        }
+                    }
+                    
+                    if (maskName) {
+                        const basePath = faceMaskConfig.assetPath || '';
+                        const maskPattern = faceMaskConfig.maskFilePattern || 'mask_{name}.png';
+                        optionImage.src = `${basePath}${maskPattern.replace('{name}', maskName)}`;
+                    }
                 }
                 optionImage.alt = formatFilterName(filter);
                 optionImage.setAttribute('aria-hidden', 'true'); // Decorative image
@@ -3483,24 +3516,36 @@
         
         // Discover face mask files dynamically
         // This function attempts to discover available face mask PNG files
-        // Expected naming convention: mask_<mask name>.png (e.g., mask_sam.png)
+        // Configuration is read from the current scene's faceMasks config
         // Since browser WASM cannot directly access the file system, we use JavaScript to discover files
-        let directoryListingAttempted = false;
+        let directoryListingAttempted = {};
         async function discoverFaceMasks() {
-            // If masks already discovered, don't rediscover
-            if (discoveredFaceMasks.length > 0) {
+            // Get current scene and its face mask configuration
+            const currentSceneKey = sceneSelect ? sceneSelect.value : null;
+            const currentScene = currentSceneKey ? SCENES[currentSceneKey] : null;
+            
+            if (!currentScene || !currentScene.faceMasks) {
+                // No face mask configuration for this scene
+                return [];
+            }
+            
+            const faceMaskConfig = currentScene.faceMasks;
+            const basePath = faceMaskConfig.assetPath || '';
+            const maskPattern = faceMaskConfig.maskFilePattern || 'mask_{name}.png';
+            
+            // Check if we've already attempted discovery for this path
+            if (directoryListingAttempted[basePath]) {
                 return discoveredFaceMasks;
             }
             
-            console.log('Discovering face mask files (looking for mask_*.png pattern)...');
+            console.log(`Discovering face mask files for scene ${currentSceneKey} (looking in ${basePath})...`);
             discoveredFaceMasks = [];
-            const basePath = 'assets/dropout/face_mask/';
             
             // First, try to discover from a directory listing if available (for server environments)
             // This is the most reliable method and doesn't require hardcoded names
             // Only try once to avoid duplicate 404 errors
-            if (window.location.protocol !== 'file:' && !directoryListingAttempted) {
-                directoryListingAttempted = true;
+            if (window.location.protocol !== 'file:' && !directoryListingAttempted[basePath]) {
+                directoryListingAttempted[basePath] = true;
                 try {
                     // Try to fetch directory listing (some servers support this)
                     // Note: Most servers don't support directory listings, so 404 is expected
@@ -3514,9 +3559,12 @@
                         const links = doc.querySelectorAll('a[href$=".png"]');
                         links.forEach(link => {
                             const fileName = link.getAttribute('href');
-                            // Look for files matching mask_<name>.png pattern
-                            if (fileName && fileName.startsWith('mask_') && fileName.endsWith('.png')) {
-                                const maskName = fileName.replace('mask_', '').replace('.png', '');
+                            // Look for files matching the pattern (e.g., mask_<name>.png)
+                            // Extract name from pattern: mask_{name}.png -> extract {name} part
+                            const patternRegex = maskPattern.replace('{name}', '(.+)').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const match = fileName.match(new RegExp(patternRegex));
+                            if (match && match[1]) {
+                                const maskName = match[1];
                                 if (maskName && !discoveredFaceMasks.includes(maskName)) {
                                     discoveredFaceMasks.push(maskName);
                                     console.log('Discovered face mask from directory listing:', maskName);
@@ -3545,7 +3593,7 @@
                 
                 // Error suppression is handled globally - 404s during discovery are expected
                 const discoveryPromises = potentialNames.map(async (maskName) => {
-                    const assetPath = `${basePath}mask_${maskName}.png`;
+                    const assetPath = `${basePath}${maskPattern.replace('{name}', maskName)}`;
                     
                     return new Promise((resolve) => {
                         const img = new Image();
@@ -3579,25 +3627,30 @@
             
             console.log('Face mask discovery complete. Found:', discoveredFaceMasks);
             
-            // Add discovered masks to filter categories
-            if (discoveredFaceMasks.length > 0 && FILTER_CATEGORIES['DROPOUT']) {
-                // Remove any existing face mask entries
-                FILTER_CATEGORIES['DROPOUT'] = FILTER_CATEGORIES['DROPOUT'].filter(
-                    f => !f.includes('face_mask')
-                );
+            // Add discovered masks to filter categories using scene configuration
+            if (discoveredFaceMasks.length > 0 && currentScene && currentScene.faceMasks) {
+                const categoryName = faceMaskConfig.categoryName;
+                const filterPrefix = faceMaskConfig.filterPrefix || '';
                 
-                // Add discovered masks
-                discoveredFaceMasks.forEach(maskName => {
-                    FILTER_CATEGORIES['DROPOUT'].push(`dropout_face_mask_${maskName}`);
-                });
-                
-                // Rebuild allFilters array
-                allFilters = [];
-                Object.values(FILTER_CATEGORIES).forEach(categoryFilters => {
-                    allFilters.push(...categoryFilters);
-                });
-                
-                console.log('Updated filter categories with discovered masks');
+                if (categoryName && FILTER_CATEGORIES[categoryName]) {
+                    // Remove any existing face mask entries
+                    FILTER_CATEGORIES[categoryName] = FILTER_CATEGORIES[categoryName].filter(
+                        f => !f.includes('face_mask')
+                    );
+                    
+                    // Add discovered masks
+                    discoveredFaceMasks.forEach(maskName => {
+                        FILTER_CATEGORIES[categoryName].push(`${filterPrefix}face_mask_${maskName}`);
+                    });
+                    
+                    // Rebuild allFilters array
+                    allFilters = [];
+                    Object.values(FILTER_CATEGORIES).forEach(categoryFilters => {
+                        allFilters.push(...categoryFilters);
+                    });
+                    
+                    console.log('Updated filter categories with discovered masks');
+                }
             }
             
             return discoveredFaceMasks;
@@ -3605,16 +3658,28 @@
         
         // Preload face mask images
         async function preloadFaceMasks() {
+            // Get current scene and its face mask configuration
+            const currentSceneKey = sceneSelect ? sceneSelect.value : null;
+            const currentScene = currentSceneKey ? SCENES[currentSceneKey] : null;
+            
+            if (!currentScene || !currentScene.faceMasks) {
+                return; // No face mask configuration for this scene
+            }
+            
             // Masks should already be discovered, but ensure they are
             if (discoveredFaceMasks.length === 0) {
                 await discoverFaceMasks();
             }
             
+            const faceMaskConfig = currentScene.faceMasks;
+            const basePath = faceMaskConfig.assetPath || '';
+            const maskPattern = faceMaskConfig.maskFilePattern || 'mask_{name}.png';
+            
             console.log('Preloading face mask images...');
             
-            // Preload all discovered masks (using mask_<name>.png pattern)
+            // Preload all discovered masks
             for (const maskName of discoveredFaceMasks) {
-                const assetPath = `assets/dropout/face_mask/mask_${maskName}.png`;
+                const assetPath = `${basePath}${maskPattern.replace('{name}', maskName)}`;
                 if (!faceMaskImages[assetPath]) {
                     try {
                         const img = new Image();
@@ -3657,17 +3722,36 @@
         
         // Apply face mask to canvas with eye alignment
         function applyFaceMask(ctx, faceRect, faceLandmarks, filterName) {
-            // Extract mask name from filter (e.g., dropout_face_mask_<name> -> <name>)
-            const parts = filterName.split('_');
-            const maskName = parts[parts.length - 1];
+            // Get current scene and its face mask configuration
+            const currentSceneKey = sceneSelect ? sceneSelect.value : null;
+            const currentScene = currentSceneKey ? SCENES[currentSceneKey] : null;
             
-            // Determine asset path (using mask_<name>.png pattern for dropout masks)
-            let assetPath = '';
-            if (filterName.startsWith('dropout_')) {
-                assetPath = `assets/dropout/face_mask/mask_${maskName}.png`;
-            } else if (filterName.startsWith('assets_')) {
-                assetPath = `assets/face_mask/${maskName}.png`;
+            if (!currentScene || !currentScene.faceMasks) {
+                return; // No face mask configuration for this scene
             }
+            
+            const faceMaskConfig = currentScene.faceMasks;
+            const filterPrefix = faceMaskConfig.filterPrefix || '';
+            
+            // Extract mask name from filter (e.g., <prefix>face_mask_<name> -> <name>)
+            let maskName = '';
+            if (filterName.startsWith(filterPrefix + 'face_mask_')) {
+                maskName = filterName.substring((filterPrefix + 'face_mask_').length);
+            } else if (filterName.includes('face_mask_')) {
+                const parts = filterName.split('face_mask_');
+                if (parts.length > 1) {
+                    maskName = parts[parts.length - 1];
+                }
+            }
+            
+            if (!maskName) {
+                return;
+            }
+            
+            // Determine asset path using scene configuration
+            const basePath = faceMaskConfig.assetPath || '';
+            const maskPattern = faceMaskConfig.maskFilePattern || 'mask_{name}.png';
+            const assetPath = `${basePath}${maskPattern.replace('{name}', maskName)}`;
             
             if (!assetPath) {
                 return;
@@ -4319,7 +4403,7 @@
                 const text = displayText.toLowerCase();
                 const filterValueLower = filterValue.toLowerCase();
                 
-                // Extract face mask name for better matching (e.g., "sam" from "dropout_face_mask_sam")
+                // Extract face mask name for better matching (e.g., "maskname" from "<prefix>face_mask_maskname")
                 let faceMaskName = '';
                 if (filterValue.includes('face_mask')) {
                     const parts = filterValue.split('_');
@@ -4619,6 +4703,7 @@
         }
         
         // Embedded scenes data for file:// protocol fallback
+        // Note: This should match scenes/dropout.json - loaded from file when available
         const EMBEDDED_SCENES = {
             "dropout": {
                 "name": "Dropout",
@@ -4643,7 +4728,13 @@
                     "lens_distortion", "wave_distortion", "squeeze_horizontal", "squeeze_vertical",
                     "radial_wobble", "complex_ripple", "squish_face", "stretch_face", "funhouse_mirror",
                     "pinch_cheeks", "bulge_eyes", "warp_face", "funny_squash", "funny_stretch",
-                    "wobble_face", "elastic_face", "gentle_ripple", "smush_face", "upside_down"]
+                    "wobble_face", "elastic_face", "gentle_ripple", "smush_face", "upside_down"],
+                "faceMasks": {
+                    "categoryName": "DROPOUT",
+                    "filterPrefix": "dropout_",
+                    "assetPath": "assets/dropout/face_mask/",
+                    "maskFilePattern": "mask_{name}.png"
+                }
             },
             "wesworld": {
                 "name": "WesWorld",
@@ -4705,8 +4796,8 @@
             "commitTime": 1765179928000
         };
         
-        // Fallback dropout scene (used if file loading fails)
-        const FALLBACK_DROPOUT_SCENE = EMBEDDED_SCENES.dropout;
+        // Fallback scene (used if file loading fails) - uses first available embedded scene
+        const FALLBACK_SCENE = Object.values(EMBEDDED_SCENES)[0] || null;
         
         // Load scene from JSON file
         async function loadSceneFromFile(sceneKey) {
@@ -4778,8 +4869,8 @@
                 return EMBEDDED_SCENES_MANIFEST.scenes;
             }
             
-            // Last resort: try to load common scene names
-            const possibleScenes = ['dropout', 'wesworld'];
+            // Last resort: try to load scenes from embedded manifest
+            const possibleScenes = EMBEDDED_SCENES_MANIFEST?.scenes || [];
             const loadedScenes = [];
             
             for (const sceneKey of possibleScenes) {
@@ -4817,10 +4908,13 @@
             // Populate scene dropdown only with successfully loaded scenes
             sceneSelect.innerHTML = '';
             const sceneKeys = Object.keys(SCENES);
-            if (sceneKeys.length === 0) {
-                // If no scenes loaded, add fallback
-                SCENES.dropout = FALLBACK_DROPOUT_SCENE;
-                sceneKeys.push('dropout');
+            if (sceneKeys.length === 0 && FALLBACK_SCENE) {
+                // If no scenes loaded, add fallback from embedded scenes
+                const fallbackKey = Object.keys(EMBEDDED_SCENES)[0];
+                if (fallbackKey) {
+                    SCENES[fallbackKey] = FALLBACK_SCENE;
+                    sceneKeys.push(fallbackKey);
+                }
             }
             sceneKeys.forEach(sceneKey => {
                 const option = document.createElement('option');
@@ -4829,9 +4923,9 @@
                 sceneSelect.appendChild(option);
             });
             
-            // Load saved scene from localStorage, or default to dropout
+            // Load saved scene from localStorage, or default to first available scene
             const savedScene = localStorage.getItem('wesworld-fx-scene');
-            const defaultScene = availableScenes.includes('dropout') ? 'dropout' : (availableScenes[0] || 'dropout');
+            const defaultScene = availableScenes.length > 0 ? availableScenes[0] : (sceneKeys.length > 0 ? sceneKeys[0] : null);
             
             // Use saved scene if it exists and is valid, otherwise use default
             let sceneToLoad = defaultScene;
@@ -4839,7 +4933,7 @@
                 sceneToLoad = savedScene;
             }
             
-            if (SCENES[sceneToLoad]) {
+            if (sceneToLoad && SCENES[sceneToLoad]) {
                 sceneSelect.value = sceneToLoad;
                 applyScene(SCENES[sceneToLoad]);
             } else if (Object.keys(SCENES).length > 0) {
@@ -4847,12 +4941,15 @@
                 const firstScene = Object.keys(SCENES)[0];
                 sceneSelect.value = firstScene;
                 applyScene(SCENES[firstScene]);
-            } else {
+            } else if (FALLBACK_SCENE) {
                 // If no scenes loaded (e.g., CORS error), use fallback
-                console.warn('No scenes loaded, using fallback dropout scene');
-                SCENES.dropout = FALLBACK_DROPOUT_SCENE;
-                sceneSelect.value = 'dropout';
-                applyScene(FALLBACK_DROPOUT_SCENE);
+                const fallbackKey = Object.keys(EMBEDDED_SCENES)[0];
+                console.warn('No scenes loaded, using fallback scene:', fallbackKey);
+                if (fallbackKey) {
+                    SCENES[fallbackKey] = FALLBACK_SCENE;
+                    sceneSelect.value = fallbackKey;
+                    applyScene(FALLBACK_SCENE);
+                }
             }
             
             // Build filter categories from current scene
@@ -8633,11 +8730,13 @@
                         console.log('Scene changed to:', sceneKey);
                     } else {
                         console.error(`Failed to load scene: ${sceneKey}`);
-                        // Fallback to dropout if scene fails to load
-                        if (SCENES.dropout) {
-                            sceneSelect.value = 'dropout';
-                            applyScene(SCENES.dropout);
-                            localStorage.setItem('wesworld-fx-scene', 'dropout');
+                        // Fallback to first available scene if scene fails to load
+                        const availableSceneKeys = Object.keys(SCENES);
+                        if (availableSceneKeys.length > 0) {
+                            const fallbackSceneKey = availableSceneKeys[0];
+                            sceneSelect.value = fallbackSceneKey;
+                            applyScene(SCENES[fallbackSceneKey]);
+                            localStorage.setItem('wesworld-fx-scene', fallbackSceneKey);
                         }
                     }
                 });
@@ -8928,7 +9027,7 @@
                 }
                 
                 // Setup UI
-                await loadScenes(); // Load scenes first (sets default to dropout)
+                await loadScenes(); // Load scenes first
                 await loadCameras();
                 loadPinnedFilters();
                 
@@ -9077,10 +9176,13 @@
                 // Populate scene dropdown
                 sceneSelect.innerHTML = '';
                 let sceneKeys = Object.keys(SCENES);
-                if (sceneKeys.length === 0) {
-                    // If no scenes loaded, add fallback
-                    SCENES.dropout = FALLBACK_DROPOUT_SCENE;
-                    sceneKeys = ['dropout'];
+                if (sceneKeys.length === 0 && FALLBACK_SCENE) {
+                    // If no scenes loaded, add fallback from embedded scenes
+                    const fallbackKey = Object.keys(EMBEDDED_SCENES)[0];
+                    if (fallbackKey) {
+                        SCENES[fallbackKey] = FALLBACK_SCENE;
+                        sceneKeys = [fallbackKey];
+                    }
                 }
                 sceneKeys.forEach(sceneKey => {
                     const option = document.createElement('option');
@@ -9089,28 +9191,29 @@
                     sceneSelect.appendChild(option);
                 });
                 
-                // Load saved scene from localStorage, or default to dropout
+                // Load saved scene from localStorage, or default to first available scene
                 const savedScene = localStorage.getItem('wesworld-fx-scene');
                 const availableSceneKeys = Object.keys(SCENES);
                 
-                let sceneToLoad = 'dropout';
+                let sceneToLoad = availableSceneKeys.length > 0 ? availableSceneKeys[0] : null;
                 if (savedScene && SCENES[savedScene] && availableSceneKeys.includes(savedScene)) {
                     sceneToLoad = savedScene;
-                } else if (SCENES.dropout) {
-                    sceneToLoad = 'dropout';
                 } else if (availableSceneKeys.length > 0) {
                     sceneToLoad = availableSceneKeys[0];
                 }
                 
-                if (SCENES[sceneToLoad]) {
+                if (sceneToLoad && SCENES[sceneToLoad]) {
                     sceneSelect.value = sceneToLoad;
                     applyScene(SCENES[sceneToLoad]);
-                } else {
+                } else if (FALLBACK_SCENE) {
                     // If no scenes loaded (e.g., CORS error), use fallback
-                    console.warn('No scenes loaded in loadSceneEarly, using fallback dropout scene');
-                    SCENES.dropout = FALLBACK_DROPOUT_SCENE;
-                    sceneSelect.value = 'dropout';
-                    applyScene(FALLBACK_DROPOUT_SCENE);
+                    const fallbackKey = Object.keys(EMBEDDED_SCENES)[0];
+                    console.warn('No scenes loaded in loadSceneEarly, using fallback scene:', fallbackKey);
+                    if (fallbackKey) {
+                        SCENES[fallbackKey] = FALLBACK_SCENE;
+                        sceneSelect.value = fallbackKey;
+                        applyScene(FALLBACK_SCENE);
+                    }
                 }
                 
                 // Show controls after scene is loaded
