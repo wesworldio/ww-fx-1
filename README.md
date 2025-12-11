@@ -474,7 +474,7 @@ A fully client-side version that runs entirely in the browser without any backen
 - ✅ **WASM Processing** - High-performance WebAssembly filters (index.html)
 - ✅ **Client-Side Face Detection** - Uses MediaPipe Face Detection (WASM) or face-api.js
 - ✅ **All UI Features** - Pinned FX, search, keyboard shortcuts
-- ✅ **Face Mask Support** - Loads masks from `assets/dropout/face_mask/`
+- ✅ **Face Mask Support** - Loads masks from `assets/folder/face_mask/`
 - ✅ **LocalStorage** - Saves preferences (pinned FX, camera selection)
 - ✅ **Works Offline** - Once assets are cached
 - ✅ **Mobile Optimized** - Touch-friendly UI, responsive design
@@ -489,7 +489,6 @@ A fully client-side version that runs entirely in the browser without any backen
 ### Requirements
 
 - Modern web browser with camera access
-- `assets/dropout/face_mask/` folder with face mask images (sam.png)
 
 ## Web-Based Version (Server)
 
@@ -574,10 +573,6 @@ If virtual camera is not available, the filter runs in preview-only mode:
 5. The filtered video feed will appear in OBS
 
 ## All Available Filters
-
-### DROPOUT Face Masks
-Face masks are discovered dynamically from `assets/dropout/face_mask/`:
-- `sam_face_mask` - Sam face mask (from `mask_sam.png`)
 
 ### Distortion Filters (50 filters)
 `bulge`, `stretch`, `swirl`, `fisheye`, `pinch`, `wave`, `mirror`, `twirl`, `ripple`, `sphere`, `tunnel`, `water_ripple`, `radial_blur`, `cylinder`, `barrel`, `pincushion`, `whirlpool`, `radial_zoom`, `concave`, `convex`, `spiral`, `radial_stretch`, `radial_compress`, `vertical_wave`, `horizontal_wave`, `skew_horizontal`, `skew_vertical`, `rotate_zoom`, `radial_wave`, `zoom_in`, `zoom_out`, `fast_zoom_in`, `fast_zoom_out`, `shake`, `pulse`, `spiral_zoom`, `extreme_closeup`, `puzzle`, `rotate`, `rotate_45`, `rotate_90`, `flip_horizontal`, `flip_vertical`, `flip_both`, `quad_mirror`, `tile`, `radial_tile`, `zoom_blur`, `melt`, `kaleidoscope`, `glitch`, `double_vision`
